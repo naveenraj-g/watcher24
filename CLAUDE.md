@@ -1,0 +1,191 @@
+# CLAUDE.md — Watcher24
+
+## Project Overview
+
+Watcher24 is a multi-tenant observability and audit logging platform.
+It ingests telemetry (logs, metrics, traces, audit events) from SDKs, processes them through a pipeline, and displays them on a realtime dashboard.
+
+**Monorepo structure:**
+
+```
+watcher24/
+├── apps/
+│   ├── gateway-go/        — Telemetry ingestion gateway (Go)
+│   ├── analytics-python/  — Event processing workers (Python)
+│   └── dashboard-nextjs/  — Frontend dashboard (Next.js)
+├── iam/                   — Identity & Access Management (Next.js + better-auth)
+├── sdk/                   — Client SDKs (JS, Python, Go, Rust)
+├── infrastructure/        — DB migrations, Docker configs
+└── docs/                  — Project-level architecture docs
+```
+
+---
+
+## Rules — Follow These on Every App
+
+### 1. Clean Architecture (mandatory)
+
+Every app must follow clean architecture with strict one-way dependencies.
+Outer layers depend on inner layers. Inner layers never import outer layers.
+
+```
+Domain (entities, value objects — zero external imports)
+  ↑
+Ports (interfaces/contracts — no implementations)
+  ↑
+Use Cases (business logic — depends on ports only, never on adapters)
+  ↑
+Adapters (implementations of ports — DB, Redis, HTTP clients, etc.)
+  ↑
+Transport / Presentation (HTTP handlers, CLI, workers)
+  ↑
+main / entrypoint (composition root — wires everything together)
+```
+
+**Rules:**
+- Use cases NEVER import adapters directly — only port interfaces
+- Domain NEVER imports anything outside the standard library
+- Transport NEVER contains business logic
+- The composition root (`main.go`, `main.py`, etc.) is the ONLY place where concrete implementations are injected
+- One use case = one file = one operation
+
+---
+
+### 2. Documentation (mandatory)
+
+Every app must have a `docs/` folder containing:
+
+| File | Contents |
+|------|----------|
+| `overview.md` | What the app does, why it exists, where it fits in the system |
+| `architecture.md` | Clean architecture layers explained for this specific app |
+| `api.md` | Endpoints or interfaces exposed (if applicable) |
+| `configuration.md` | All environment variables with defaults and descriptions |
+
+Docs must be kept in sync with the code. If behaviour changes, update the relevant doc.
+
+---
+
+### 3. Code Comments (mandatory)
+
+Every file, struct, interface, function, and method must have a comment explaining the WHY, not just the what.
+
+**Rules:**
+- Every **file** must start with a package/module comment explaining what the file contains and its role in the architecture
+- Every **struct / class** must have a comment explaining what it represents
+- Every **interface** must have a comment explaining the contract and why it exists as an interface
+- Every **function / method** must have a comment if it is not immediately obvious
+- Comments on **non-obvious logic** must explain WHY, not just re-state what the code does
+- Never write a comment that just repeats the function name
+
+**Example (Go):**
+```go
+// KeyValidator is the port interface for API key validation.
+// The gateway depends on this interface rather than a concrete Postgres
+// implementation so that tests can inject a fake validator without
+// requiring a live database connection.
+type KeyValidator interface {
+    // Validate hashes the raw key and looks it up in the IAM database.
+    // Returns the resolved APIKey (with org context) or an error if the
+    // key is missing, disabled, or expired.
+    Validate(ctx context.Context, rawKey string) (*domain.APIKey, error)
+}
+```
+
+---
+
+### 4. Tests (mandatory)
+
+Every app must have tests. No exceptions.
+
+**Coverage requirements:**
+- All use cases must have unit tests with mocked ports
+- All adapters must have integration tests (use real DB/Redis from docker-compose)
+- All HTTP handlers must have tests
+- All domain logic (validation, enrichment) must have unit tests
+
+**Test file conventions:**
+
+| Language | Unit test location | Integration test location |
+|----------|--------------------|--------------------------|
+| Go | Same package, `_test.go` suffix | `tests/integration/` folder |
+| Python | `tests/unit/` folder | `tests/integration/` folder |
+| TypeScript | Same folder, `.test.ts` suffix | `tests/` folder |
+
+**Test naming:**
+
+```
+// Go
+func TestIngestEvent_ValidEvent_PublishesToCorrectStream(t *testing.T)
+func TestIngestEvent_ExpiredAPIKey_ReturnsError(t *testing.T)
+
+# Python
+def test_ingest_event_valid_event_publishes_to_correct_stream()
+def test_ingest_event_expired_api_key_returns_error()
+```
+
+Pattern: `Test<UseCase>_<Condition>_<ExpectedBehaviour>`
+
+**Mock/stub rules:**
+- Unit tests must mock all ports — no real DB, no real Redis
+- Integration tests must use the real docker-compose services (never a shared environment)
+- Never mock the domain layer — domain objects are plain data structures
+
+**Every app must include a test runner script:**
+
+```bash
+# Go
+go test ./...
+
+# Python
+pytest
+
+# TypeScript
+pnpm test
+```
+
+---
+
+### 5. Error Handling
+
+- Never swallow errors silently
+- Every error must be wrapped with context: `fmt.Errorf("ingest event: %w", err)`
+- Domain errors must be typed (not raw strings) so callers can switch on them
+- HTTP errors must always return the standard error shape: `{ "error": "...", "code": "..." }`
+
+---
+
+### 6. Environment Variables
+
+- Every app must have a `.env.example` file in its own folder
+- Never hardcode secrets, ports, or URLs
+- All env vars must be documented in `docs/configuration.md`
+
+---
+
+### 7. Folder Structure Per App
+
+```
+<app-name>/
+├── docs/               — markdown documentation (overview, architecture, api, configuration)
+├── tests/              — integration tests
+│   └── integration/
+├── internal/ (Go) or src/ (Python/TS)
+│   ├── domain/         — entities, value objects
+│   ├── ports/          — interfaces
+│   ├── usecases/       — business logic
+│   ├── adapters/       — infrastructure implementations
+│   └── transport/      — HTTP / worker / CLI layer
+├── main.go / main.py   — composition root
+├── .env.example        — environment variable template
+└── README.md           — quick start (how to run, test, configure)
+```
+
+---
+
+### 8. Git
+
+- All MVP work goes on the `mvp` branch
+- Commit message format: `feat:`, `fix:`, `refactor:`, `test:`, `docs:`
+- Never commit `.env` files — only `.env.example`
+- Never commit `node_modules/`, `__pycache__/`, build artifacts
