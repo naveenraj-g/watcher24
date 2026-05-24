@@ -67,11 +67,25 @@ sdk-python-test-cov:
 
 # Run the IAM app in dev mode
 iam-dev:
-    cd iam && pnpm dev
+    cd apps/iam && pnpm dev
 
 # Build the IAM app
 iam-build:
-    cd iam && pnpm build
+    cd apps/iam && pnpm build
+
+# ── Dashboard (Next.js) ───────────────────────────────────────────────────────
+
+# Run the dashboard in dev mode
+dashboard-dev:
+    cd apps/dashboard-nextjs && pnpm dev
+
+# Build the dashboard
+dashboard-build:
+    cd apps/dashboard-nextjs && pnpm build
+
+# Install dashboard dependencies
+dashboard-install:
+    cd apps/dashboard-nextjs && pnpm install
 
 # ── Realtime (Go) ────────────────────────────────────────────────────────────
 

@@ -12,8 +12,9 @@ watcher24/
 ├── apps/
 │   ├── gateway-go/        — Telemetry ingestion gateway (Go)
 │   ├── analytics-python/  — Event processing workers (Python)
-│   └── dashboard-nextjs/  — Frontend dashboard (Next.js)
-├── iam/                   — Identity & Access Management (Next.js + better-auth)
+│   ├── realtime-go/       — WebSocket fan-out service (Go)
+│   ├── dashboard-nextjs/  — Frontend observability dashboard (Next.js)
+│   └── iam/               — Identity & Access Management (Next.js + better-auth)
 ├── sdk/                   — Client SDKs (JS, Python, Go, Rust)
 ├── infrastructure/        — DB migrations, Docker configs
 └── docs/                  — Project-level architecture docs
