@@ -54,13 +54,22 @@ importers:
       '@watcher/node':
         specifier: workspace:*
         version: link:../node
+      '@watcher/react':
+        specifier: workspace:*
+        version: link:../react
       next:
         specifier: '>=14.0.0'
         version: 16.2.6(react-dom@19.2.6(react@18.3.1))(react@18.3.1)
+      react:
+        specifier: '>=18.0.0'
+        version: 18.3.1
     devDependencies:
       '@types/node':
         specifier: ^20.0.0
         version: 20.19.41
+      '@types/react':
+        specifier: ^18.0.0
+        version: 18.3.29
       '@vitest/coverage-v8':
         specifier: ^1.6.0
         version: 1.6.1(vitest@1.6.1(@types/node@20.19.41)(jsdom@25.0.1))
