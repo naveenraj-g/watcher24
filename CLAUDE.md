@@ -131,16 +131,13 @@ Pattern: `Test<UseCase>_<Condition>_<ExpectedBehaviour>`
 - Integration tests must use the real docker-compose services (never a shared environment)
 - Never mock the domain layer — domain objects are plain data structures
 
-**Every app must include a test runner script:**
+**Every app must include a test runner:**
 
 ```bash
-# Go
-go test ./...
+# Go / Python (via justfile)
+just test
 
-# Python
-pytest
-
-# TypeScript
+# TypeScript / Next.js (via package.json)
 pnpm test
 ```
 
@@ -183,7 +180,48 @@ pnpm test
 
 ---
 
-### 8. Git
+### 8. Scripts & Package Managers
+
+**Python apps and SDKs — always use `uv`:**
+- Install deps: `uv sync`
+- Run anything: `uv run <command>`
+- Add a dep: `uv add <package>`
+- Add a dev dep: `uv add --dev <package>`
+- Never use `pip install` directly in Python projects
+
+**Script runner per tech stack:**
+
+| Stack | Script runner | Where scripts live |
+|-------|--------------|-------------------|
+| Next.js / React / any npm app | `pnpm` | `package.json` → `scripts` |
+| Go / Python / Rust / anything else | `just` | `justfile` in the app root |
+
+Every non-npm app must have a `justfile` with at minimum these recipes:
+
+```makefile
+# Go
+dev       # go run main.go (with .env loaded)
+build     # go build -o bin/<name> .
+test      # go test ./...
+lint      # go vet ./...
+tidy      # go mod tidy
+
+# Python
+dev       # uv run python main.py
+test      # uv run pytest
+test-cov  # uv run pytest --cov
+sync      # uv sync
+```
+
+The root `justfile` must have a recipe per app that delegates to it:
+```
+gateway   # just -f apps/gateway-go/justfile <recipe>
+worker    # just -f apps/analytics-python/justfile <recipe>
+```
+
+---
+
+### 9. Git
 
 - All MVP work goes on the `mvp` branch
 - Commit message format: `feat:`, `fix:`, `refactor:`, `test:`, `docs:`
