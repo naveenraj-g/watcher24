@@ -5,8 +5,16 @@
 // This keeps the middleware on the Edge runtime (no DB connection needed).
 import { NextRequest, NextResponse } from "next/server";
 
-// Public paths that do not require a session cookie.
-const PUBLIC_PATHS = ["/login", "/api/auth", "/_next", "/favicon"];
+const PUBLIC_PATHS = [
+  "/login",
+  "/signup",
+  "/forgot-password",
+  "/reset-password",
+  "/verify-email",
+  "/api/auth",
+  "/_next",
+  "/favicon",
+];
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;

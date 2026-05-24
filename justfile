@@ -73,19 +73,19 @@ iam-dev:
 iam-build:
     cd apps/iam && pnpm build
 
-# ── Dashboard (Next.js) ───────────────────────────────────────────────────────
+# ── Console (Next.js) ────────────────────────────────────────────────────────
 
-# Run the dashboard in dev mode
-dashboard-dev:
-    cd apps/dashboard-nextjs && pnpm dev
+# Run the console in dev mode
+console-dev:
+    cd apps/console && pnpm dev
 
-# Build the dashboard
-dashboard-build:
-    cd apps/dashboard-nextjs && pnpm build
+# Build the console
+console-build:
+    cd apps/console && pnpm build
 
-# Install dashboard dependencies
-dashboard-install:
-    cd apps/dashboard-nextjs && pnpm install
+# Install console dependencies
+console-install:
+    cd apps/console && pnpm install
 
 # ── Realtime (Go) ────────────────────────────────────────────────────────────
 

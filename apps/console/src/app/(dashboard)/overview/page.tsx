@@ -1,8 +1,7 @@
 // Overview page — the dashboard home.  Shows 24-hour KPI cards, an events-over-
 // time chart, and the live WebSocket feed.  All heavy data is fetched server-side
 // from ClickHouse; the live feed is client-only.
-import { headers } from "next/headers";
-import { auth } from "@/lib/auth-server";
+import { getServerSession } from "@/lib/auth-server";
 import { queryOverviewStats, queryHourlyBuckets } from "@/lib/clickhouse";
 import { StatsCards } from "@/components/dashboard/StatsCards";
 import { EventsChart } from "@/components/dashboard/EventsChart";
@@ -11,10 +10,8 @@ import { LiveFeed } from "@/components/dashboard/LiveFeed";
 export const dynamic = "force-dynamic";
 
 export default async function OverviewPage() {
-  const session = await auth.api.getSession({ headers: await headers() });
-  const orgId =
-    (session?.session as { activeOrganizationId?: string })
-      ?.activeOrganizationId ?? "";
+  const session = await getServerSession();
+  const orgId = session?.session.activeOrganizationId ?? "";
 
   // Fetch stats and chart data in parallel — both hit ClickHouse independently.
   const [stats, buckets] = await Promise.all([

@@ -1,9 +1,9 @@
-// Login page — email/password sign-in form.
-// Uses better-auth's signIn.email on the client side.
+// Signup page — creates a new account via IAM (proxied through /api/auth/sign-up/email).
 "use client";
 
 import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { authClient } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,11 +17,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Activity } from "lucide-react";
 
-export default function LoginPage() {
+export default function SignupPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") ?? "/overview";
 
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -32,18 +31,20 @@ export default function LoginPage() {
     setError(null);
     setLoading(true);
 
-    const { error: authError } = await authClient.signIn.email({
+    const { error: authError } = await authClient.signUp.email({
+      name,
       email,
       password,
     });
 
     if (authError) {
-      setError(authError.message ?? "Invalid email or password");
+      setError(authError.message ?? "Could not create account");
       setLoading(false);
       return;
     }
 
-    router.push(callbackUrl);
+    // IAM sends a verification email — redirect to a holding page.
+    router.push("/verify-email?pending=true");
   }
 
   return (
@@ -54,11 +55,23 @@ export default function LoginPage() {
             <Activity className="h-5 w-5" />
           </div>
         </div>
-        <CardTitle className="text-xl">Watcher24</CardTitle>
-        <CardDescription>Sign in to your observability dashboard</CardDescription>
+        <CardTitle className="text-xl">Create an account</CardTitle>
+        <CardDescription>Start monitoring your apps with Watcher24</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="name">Full name</Label>
+            <Input
+              id="name"
+              type="text"
+              placeholder="Jane Smith"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+              autoComplete="name"
+            />
+          </div>
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input
@@ -76,19 +89,28 @@ export default function LoginPage() {
             <Input
               id="password"
               type="password"
+              placeholder="At least 8 characters"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              autoComplete="current-password"
+              minLength={8}
+              autoComplete="new-password"
             />
           </div>
-          {error && (
-            <p className="text-sm text-destructive">{error}</p>
-          )}
+          {error && <p className="text-sm text-destructive">{error}</p>}
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Signing in…" : "Sign in"}
+            {loading ? "Creating account…" : "Create account"}
           </Button>
         </form>
+        <p className="mt-4 text-center text-sm text-muted-foreground">
+          Already have an account?{" "}
+          <Link
+            href="/login"
+            className="font-medium text-foreground underline-offset-4 hover:underline"
+          >
+            Sign in
+          </Link>
+        </p>
       </CardContent>
     </Card>
   );

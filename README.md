@@ -25,7 +25,7 @@ Redis Pub/Sub
 apps/realtime-go         — WebSocket fan-out service (Go, port 8081)
     │
     ▼
-apps/dashboard-nextjs    — Observability dashboard (Next.js, port 3001)
+apps/console    — Console UI: observability, onboarding, billing, docs (Next.js, port 3001)
 
 apps/iam                 — Identity & Access Management (Next.js + better-auth, port 5000)
 PostgreSQL               — Auth + IAM data (port 5433)
@@ -41,7 +41,7 @@ watcher24/
 │   ├── gateway-go/        — Ingestion gateway (Go)
 │   ├── analytics-python/  — Event processing worker (Python)
 │   ├── realtime-go/       — WebSocket real-time service (Go)
-│   ├── dashboard-nextjs/  — Observability dashboard (Next.js)
+│   ├── console/  — Console UI (Next.js)
 │   └── iam/               — Auth & API key management (Next.js + better-auth)
 ├── sdk/
 │   ├── js/                — JavaScript/TypeScript SDK (pnpm workspace)
@@ -83,11 +83,11 @@ Each app has a `.env.example` — copy and fill in values:
 cp apps/gateway-go/.env.example       apps/gateway-go/.env
 cp apps/analytics-python/.env.example apps/analytics-python/.env
 cp apps/realtime-go/.env.example      apps/realtime-go/.env
-cp apps/dashboard-nextjs/.env.example apps/dashboard-nextjs/.env
+cp apps/console/.env.example apps/console/.env
 cp apps/iam/.env.example              apps/iam/.env
 ```
 
-> `BETTER_AUTH_SECRET` must be the **same value** in both `apps/iam/.env` and `apps/dashboard-nextjs/.env`.
+> `BETTER_AUTH_SECRET` must be the **same value** in both `apps/iam/.env` and `apps/console/.env`.
 
 ### 3. Run each service
 
@@ -97,7 +97,7 @@ Open a terminal per service (or use your process manager of choice):
 just gateway-dev    # Go gateway       → http://localhost:8080
 just worker-dev     # Python worker
 just realtime-dev   # Go WebSocket     → ws://localhost:8081
-just dashboard-dev  # Dashboard UI     → http://localhost:3001
+just console-dev    # Console UI        → http://localhost:3001
 just iam-dev        # IAM              → http://localhost:5000
 ```
 
@@ -110,7 +110,7 @@ just iam-dev        # IAM              → http://localhost:5000
 | Gateway | 8080 | Go | SDK telemetry ingestion, API key validation |
 | Analytics Worker | — | Python | Consume Redis stream, write to ClickHouse |
 | Realtime | 8081 | Go | WebSocket fan-out from Redis pub/sub |
-| Dashboard | 3001 | Next.js | Live telemetry explorer UI |
+| Console | 3001 | Next.js | Observability UI, onboarding, billing, docs |
 | IAM | 5000 | Next.js + better-auth | Auth, users, orgs, API keys |
 | PostgreSQL | 5433 | — | Auth data (shared by IAM + Dashboard) |
 | ClickHouse | 8123 | — | Telemetry event storage (90-day TTL) |
@@ -190,7 +190,8 @@ Each app is documented in its own `docs/configuration.md`:
 - [`apps/gateway-go/docs/configuration.md`](apps/gateway-go/docs/configuration.md)
 - [`apps/analytics-python/docs/configuration.md`](apps/analytics-python/docs/configuration.md)
 - [`apps/realtime-go/docs/configuration.md`](apps/realtime-go/docs/configuration.md)
-- [`apps/dashboard-nextjs/docs/configuration.md`](apps/dashboard-nextjs/docs/configuration.md)
+- [`apps/console/docs/configuration.md`](apps/console/docs/configuration.md)
+
 
 ---
 
