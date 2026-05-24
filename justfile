@@ -73,6 +73,16 @@ iam-dev:
 iam-build:
     cd iam && pnpm build
 
+# ── JS SDK ────────────────────────────────────────────────────────────────────
+
+# Test all JS SDK packages
+sdk-js-test:
+    cd sdk/js && pnpm test
+
+# Install JS SDK dependencies
+sdk-js-install:
+    cd sdk/js && pnpm install
+
 # ── Run all tests ─────────────────────────────────────────────────────────────
 
 # Run every test suite in the monorepo
@@ -80,3 +90,4 @@ test-all:
     just gateway-test
     just worker-test
     just sdk-python-test
+    just sdk-js-test
