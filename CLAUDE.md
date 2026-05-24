@@ -189,11 +189,18 @@ pnpm test
 - Add a dev dep: `uv add --dev <package>`
 - Never use `pip install` directly in Python projects
 
+**npm projects — always use `pnpm`:**
+- Install deps: `pnpm install`
+- Add a dep: `pnpm add <package>`
+- Add a dev dep: `pnpm add -D <package>`
+- Run a script: `pnpm <script>`
+- Never use `npm install`, `npm run`, `yarn`, or `npx` — use `pnpm dlx` for one-off executables
+
 **Script runner per tech stack:**
 
 | Stack | Script runner | Where scripts live |
 |-------|--------------|-------------------|
-| Next.js / React / any npm app | `pnpm` | `package.json` → `scripts` |
+| Next.js / React / any npm app | `pnpm` (never `npm` or `yarn`) | `package.json` → `scripts` |
 | Go / Python / Rust / anything else | `just` | `justfile` in the app root |
 
 Every non-npm app must have a `justfile` with at minimum these recipes:
@@ -218,6 +225,8 @@ The root `justfile` must have a recipe per app that delegates to it:
 gateway   # just -f apps/gateway-go/justfile <recipe>
 worker    # just -f apps/analytics-python/justfile <recipe>
 ```
+
+npm app recipes in the root `justfile` delegate with `cd <app> && pnpm <script>`.
 
 ---
 
