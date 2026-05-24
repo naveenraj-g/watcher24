@@ -1,0 +1,7 @@
+Metadata-Version: 2.4
+Name: watcher-sdk
+Version: 0.1.0
+Summary: Watcher24 Python SDK — send telemetry events to the Watcher24 gateway
+Requires-Python: >=3.11
+Provides-Extra: fastapi
+Requires-Dist: fastapi>=0.100.0; extra == "fastapi"

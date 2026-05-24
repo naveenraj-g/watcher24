@@ -1,0 +1,100 @@
+# Watcher SDK (Python) — API Reference
+
+## Client
+
+```python
+from watcher_sdk import Client
+
+client = Client(
+    api_key="wtch_...",           # required — from IAM
+    app_id="billing-api",         # required — your application name
+    environment="production",     # optional — default: "production"
+    gateway_url="http://...",     # optional — default: "http://localhost:8080"
+    flush_interval=0.5,           # optional — seconds between auto-flushes (default: 0.5)
+    flush_at=100,                 # optional — flush when buffer reaches N events (default: 100)
+    max_buffer=10_000,            # optional — drop oldest if buffer exceeds this (default: 10000)
+)
+```
+
+---
+
+## Methods
+
+### `client.audit(message, *, user_id="", session_id="", trace_id="", span_id="", payload=None)`
+
+Captures an audit event — user actions, compliance trail, security events.
+
+```python
+client.audit("user.login", user_id="u_123", payload={"method": "email", "ip": "1.2.3.4"})
+client.audit("patient.record.updated", user_id="doc_456", payload={"record_id": "r_001"})
+client.audit("api_key.created", user_id="u_789")
+```
+
+---
+
+### `client.log(severity, message, *, trace_id="", span_id="", payload=None)`
+
+Captures an application log event.
+
+**severity:** `"debug"` `"info"` `"warn"` `"error"` `"critical"`
+
+```python
+client.log("info", "Request completed", payload={"duration_ms": 45})
+client.log("error", "Payment failed", payload={"order_id": "o_001", "reason": "timeout"})
+client.log("warn", "Slow query detected", payload={"table": "users", "duration_ms": 1200})
+```
+
+---
+
+### `client.trace(message, *, trace_id="", span_id="", parent_span_id="", payload=None)`
+
+Captures a distributed trace span.
+
+```python
+client.trace("db.query", trace_id="abc123", span_id="s001", payload={"table": "orders", "duration_ms": 12})
+client.trace("http.request", trace_id="abc123", span_id="s002", parent_span_id="s001")
+```
+
+---
+
+### `client.metric(message, *, payload=None)`
+
+Captures a metric data point. Put the numeric value in payload.
+
+```python
+client.metric("api.latency", payload={"value": 123, "unit": "ms", "endpoint": "/v1/orders"})
+client.metric("queue.depth", payload={"value": 42, "queue": "emails"})
+```
+
+---
+
+### `client.event(event_type, severity, message, *, ...)`
+
+Generic method — use when the typed helpers don't fit.
+
+```python
+client.event("security", "critical", "Brute force detected", payload={"ip": "1.2.3.4"})
+client.event("ai", "info", "Agent completed", payload={"tokens": 1240, "model": "claude-sonnet-4-6"})
+```
+
+---
+
+### `client.flush()`
+
+Immediately sends all buffered events to the gateway. Blocks until complete.
+Call before application shutdown to ensure no events are lost.
+
+```python
+client.flush()
+```
+
+---
+
+### `client.shutdown()`
+
+Flushes remaining events and stops the background flusher thread.
+Call once when the application is shutting down.
+
+```python
+client.shutdown()
+```
