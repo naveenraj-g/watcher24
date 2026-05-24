@@ -56,6 +56,8 @@ func (p *PublisherAdapter) Close() error {
 // Publish implements ports.EventPublisher.
 // Serializes the event to a Redis Streams map and appends it to the
 // correct stream topic via XADD. The stream auto-creates if it doesn't exist.
+// Also publishes to a per-org pub/sub channel so the realtime service can
+// fan out events to connected WebSocket clients without reading from streams.
 func (p *PublisherAdapter) Publish(ctx context.Context, event *domain.Event) error {
 	fields, err := eventToStreamFields(event)
 	if err != nil {
@@ -72,11 +74,18 @@ func (p *PublisherAdapter) Publish(ctx context.Context, event *domain.Event) err
 		return fmt.Errorf("redis publisher: xadd: %w", err)
 	}
 
+	// PUBLISH events:{org_id} {event_json}
+	// Best-effort — realtime fan-out is not critical path; don't fail the
+	// ingest request if pub/sub delivery fails.
+	if b, err := json.Marshal(event); err == nil {
+		_ = p.client.Publish(ctx, "events:"+event.OrganizationID, b).Err()
+	}
+
 	return nil
 }
 
 // PublishBatch implements ports.EventPublisher.
-// Uses a Redis pipeline to send all XADD commands in a single round-trip,
+// Uses a Redis pipeline to send all XADDs and PUBLISHes in a single round-trip,
 // significantly reducing latency for batch requests.
 func (p *PublisherAdapter) PublishBatch(ctx context.Context, events []*domain.Event) error {
 	pipe := p.client.Pipeline()
@@ -92,9 +101,14 @@ func (p *PublisherAdapter) PublishBatch(ctx context.Context, events []*domain.Ev
 			ID:     "*",
 			Values: fields,
 		})
+
+		// Pub/sub for realtime fan-out — best-effort, same as single Publish.
+		if b, err := json.Marshal(event); err == nil {
+			pipe.Publish(ctx, "events:"+event.OrganizationID, b)
+		}
 	}
 
-	// Execute all XADDs in a single network round-trip.
+	// Execute all XADDs and PUBLISHes in a single network round-trip.
 	if _, err := pipe.Exec(ctx); err != nil {
 		return fmt.Errorf("redis publisher: batch exec: %w", err)
 	}

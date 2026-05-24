@@ -73,6 +73,16 @@ iam-dev:
 iam-build:
     cd iam && pnpm build
 
+# ── Realtime (Go) ────────────────────────────────────────────────────────────
+
+# Run the realtime service
+realtime-dev:
+    just -f apps/realtime-go/justfile dev
+
+# Test the realtime service
+realtime-test:
+    just -f apps/realtime-go/justfile test
+
 # ── JS SDK ────────────────────────────────────────────────────────────────────
 
 # Test all JS SDK packages
@@ -89,5 +99,6 @@ sdk-js-install:
 test-all:
     just gateway-test
     just worker-test
+    just realtime-test
     just sdk-python-test
     just sdk-js-test
