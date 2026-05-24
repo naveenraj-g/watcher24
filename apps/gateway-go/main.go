@@ -1,0 +1,88 @@
+// main.go is the composition root for the gateway service.
+//
+// This is the ONLY place in the codebase where concrete implementations
+// are instantiated and injected. All other layers depend on interfaces
+// (ports) — this file wires the real adapters to those interfaces.
+//
+// Startup order:
+//   1. Load config from environment
+//   2. Connect to infrastructure (Postgres, Redis)
+//   3. Create adapters (implement ports)
+//   4. Create use cases (inject adapters via port interfaces)
+//   5. Create handlers (inject use cases)
+//   6. Build and start HTTP server
+package main
+
+import (
+	"context"
+	"log"
+	"os"
+	"os/signal"
+	"syscall"
+
+	"watcher24/gateway/config"
+	redisadapter "watcher24/gateway/internal/adapters/redis"
+	pgadapter "watcher24/gateway/internal/adapters/postgres"
+	"watcher24/gateway/internal/transport"
+	"watcher24/gateway/internal/transport/handlers"
+	"watcher24/gateway/internal/usecases"
+)
+
+func main() {
+	ctx := context.Background()
+
+	// ── 1. Load configuration ─────────────────────────────────────────────────
+	cfg := config.Load()
+	log.Printf("gateway: starting in %s mode on :%s", cfg.Env, cfg.Port)
+
+	// ── 2. Connect to infrastructure ─────────────────────────────────────────
+	// Postgres — used only for API key validation against the IAM database
+	pgAdapter, err := pgadapter.NewKeyValidatorAdapter(ctx, cfg.IAMDatabaseURL)
+	if err != nil {
+		log.Fatalf("gateway: failed to connect to IAM database: %v", err)
+	}
+	defer pgAdapter.Close()
+	log.Println("gateway: connected to IAM database")
+
+	// Redis — used to publish events to streams
+	redisAdapter, err := redisadapter.NewPublisherAdapter(ctx, cfg.RedisURL)
+	if err != nil {
+		log.Fatalf("gateway: failed to connect to Redis: %v", err)
+	}
+	defer redisAdapter.Close()
+	log.Println("gateway: connected to Redis")
+
+	// ── 3. Create use cases (inject adapters via port interfaces) ────────────
+	// Use cases receive the adapter through the port interface, so they
+	// have no knowledge of Redis or Postgres — only the contracts.
+	ingestUC := usecases.NewIngestEventUseCase(redisAdapter)
+
+	// ── 4. Create handlers ────────────────────────────────────────────────────
+	eventsHandler := handlers.NewEventsHandler(ingestUC, cfg.Region)
+	healthHandler := handlers.NewHealthHandler(redisAdapter, pgAdapter)
+
+	// ── 5. Build server ───────────────────────────────────────────────────────
+	// pgAdapter implements both ports.KeyValidator and HealthChecker.
+	server := transport.NewServer(pgAdapter, eventsHandler, healthHandler)
+
+	// ── 6. Start with graceful shutdown ───────────────────────────────────────
+	// Run the server in a goroutine so we can listen for OS signals.
+	go func() {
+		if err := server.Start(":" + cfg.Port); err != nil {
+			log.Printf("gateway: server stopped: %v", err)
+		}
+	}()
+
+	log.Printf("gateway: listening on :%s", cfg.Port)
+
+	// Block until SIGINT (Ctrl+C) or SIGTERM (Docker/Kubernetes stop).
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
+	<-quit
+
+	log.Println("gateway: shutting down gracefully...")
+	if err := server.Shutdown(); err != nil {
+		log.Printf("gateway: shutdown error: %v", err)
+	}
+	log.Println("gateway: stopped")
+}
