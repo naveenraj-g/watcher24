@@ -28,7 +28,12 @@ import { defaultStatements, adminAc } from "better-auth/plugins/admin/access";
 
 // local import
 import { prisma } from "../../../../prisma/db";
-import { getEmailVerificationTemplate } from "@/modules/shared/email-templates/auth-email.templates";
+import {
+  getEmailVerificationTemplate,
+  getPasswordResetTemplate,
+  getChangeEmailTemplate,
+  getDeleteAccountTemplate,
+} from "@/modules/shared/email-templates/auth-email.templates";
 import { sendAuthEmail } from "@/modules/server/utils/sendAuthEmail";
 import {
   getOAuthClientOrigins,
@@ -223,18 +228,44 @@ export const authConfig = {
   }),
 
   rateLimit: {
-    window: 60, // time window in seconds
-    max: 100, // max requests in the window
+    window: 60,
+    max: 100,
+    // Persist rate limit counters across restarts; prevents bypass via process churn.
+    storage: "database",
+    customRules: {
+      "/sign-in/email":            { window: 60, max: 5 },
+      "/sign-up/email":            { window: 60, max: 3 },
+      "/forget-password":          { window: 60, max: 3 },
+      "/magic-link/send-magic-link": { window: 60, max: 3 },
+      "/two-factor/send-otp":      { window: 60, max: 5 },
+    },
   },
 
   session: {
     storeSessionInDatabase: true,
+    expiresIn: 60 * 60 * 24 * 7,   // 7 days
+    updateAge: 60 * 60 * 24,        // refresh every 24 h
+    freshAge: 60 * 60,              // require re-auth after 1 h for sensitive actions
 
-    // NOTE: Caching the session for 1 min
-    // IMPORTANT: Don't cache session for long time
+    // jwe encrypts the session payload in the cookie so org/role data is not
+    // readable by the browser even though the cookie is httpOnly.
     cookieCache: {
       enabled: true,
-      maxAge: 60, // 1 min
+      maxAge: 60,
+      strategy: "jwe",
+    },
+  },
+
+  account: {
+    // Encrypt GitHub/Google access tokens stored in the database (AES-256-GCM).
+    encryptOAuthTokens: true,
+  },
+
+  advanced: {
+    ipAddress: {
+      // Read real client IP from reverse-proxy headers for accurate rate limiting.
+      ipAddressHeaders: ["x-forwarded-for", "x-real-ip"],
+      disableIpTracking: false,
     },
   },
 
@@ -398,20 +429,26 @@ export const authConfig = {
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: REQUIRE_EMAIL_VERIFICATION,
+    minPasswordLength: 8,
+    // Reset token expires in 30 minutes; default is 1 hour.
+    resetPasswordTokenExpiresIn: 60 * 30,
+    // Invalidate all sessions when the user resets their password so a
+    // compromised session cannot be used after the password has changed.
+    revokeSessionsOnPasswordReset: true,
     sendResetPassword: async ({ user, url }) => {
       void sendAuthEmail({
         to: user.email,
-        subject: "Reset password",
-        html: `<a href="${url}">Reset password</a>`,
+        subject: "Reset your password — Watcher24",
+        html: getPasswordResetTemplate(url, user.name, "Watcher24"),
       });
     },
     onPasswordReset: async ({ user }) => {
-      console.log(`Password for user ${user.email} has been reset.`);
+      console.log(`Password reset for user ${user.email}`);
     },
     onExistingUserSignUp: async ({ user }) => {
       void sendAuthEmail({
         to: user.email,
-        subject: "Sign-up attempt with your email",
+        subject: "Sign-up attempt with your email — Watcher24",
         html: "<p>Someone tried to create an account using your email address. If this was you, try signing in instead. If not, you can safely ignore this email.</p>",
       });
     },
@@ -450,8 +487,8 @@ export const authConfig = {
       sendChangeEmailConfirmation: async ({ user, url }) => {
         void sendAuthEmail({
           to: user.email,
-          subject: "Change your email",
-          html: `Click the link below to change your email: <a href="${url}">Change Email</a>`,
+          subject: "Confirm your new email address — Watcher24",
+          html: getChangeEmailTemplate(url, user.name, "Watcher24"),
         });
       },
     },
@@ -460,8 +497,8 @@ export const authConfig = {
       sendDeleteAccountVerification: async ({ user, url }) => {
         void sendAuthEmail({
           to: user.email,
-          subject: "Delete your account",
-          html: `Click the link below to delete your account: <a href="${url}">Delete Account</a>`,
+          subject: "Confirm account deletion — Watcher24",
+          html: getDeleteAccountTemplate(url, user.name, "Watcher24"),
         });
       },
     },

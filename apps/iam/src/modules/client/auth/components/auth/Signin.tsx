@@ -178,7 +178,7 @@ function Signin() {
                         id="password"
                         aria-invalid={fieldState.invalid}
                         placeholder="Password"
-                        autoComplete="off"
+                        autoComplete="current-password"
                         type={isPasswordVisible ? "text" : "password"}
                       />
                       <InputGroupAddon

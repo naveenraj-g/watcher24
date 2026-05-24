@@ -6,15 +6,16 @@ export async function requireRole(roles: string[]) {
   const session = await getServerSession();
   const locale = await getLocale();
 
-  if (!session && !(session as any).user) {
+  if (!session || !session.user) {
     redirect({ href: "/auth/sign-in", locale });
+    return null as never;
   }
 
-  if (
-    !(session?.user as any).role ||
-    !roles.includes((session?.user as any).role)
-  ) {
+  const user = session.user as typeof session.user & { role?: string };
+
+  if (!user.role || !roles.includes(user.role)) {
     redirect({ href: "/", locale });
+    return null as never;
   }
 
   return session;

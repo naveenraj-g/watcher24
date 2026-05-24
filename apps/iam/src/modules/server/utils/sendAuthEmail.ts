@@ -36,7 +36,7 @@ export async function sendAuthEmail(
     await transporter.sendMail({
       from:
         payload.from ??
-        `BetterAuth Clean Architecture <${process.env.SMTP_EMAIL}>`,
+        `${process.env.SMTP_FROM_NAME ?? "Watcher24"} <${process.env.SMTP_EMAIL}>`,
       to: payload.to,
       subject: payload.subject,
       html: payload.html

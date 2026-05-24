@@ -148,7 +148,7 @@ function Signup() {
                       placeholder="your_username"
                     />
                     <FieldDescription>
-                      Only lowercase letters, numbers, and underscores
+                      4–32 characters. Lowercase letters, numbers, and underscores only.
                     </FieldDescription>
                     {fieldState.invalid && (
                       <FieldError errors={[fieldState.error]} />
@@ -190,7 +190,7 @@ function Signup() {
                         id="password"
                         aria-invalid={fieldState.invalid}
                         placeholder="Password"
-                        autoComplete="off"
+                        autoComplete="new-password"
                         type={isPasswordVisible ? "text" : "password"}
                       />
                       <InputGroupAddon
