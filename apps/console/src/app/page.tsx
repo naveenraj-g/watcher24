@@ -83,40 +83,40 @@ export default async function HomePage() {
         </div>
 
         {/* Code terminal mockup */}
-        <div className="relative mx-auto mt-16 max-w-2xl rounded-xl border bg-zinc-950 shadow-2xl overflow-hidden">
-          <div className="flex items-center gap-1.5 px-4 py-3 border-b border-white/10">
+        <div className="relative mx-auto mt-16 max-w-2xl rounded-xl border border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-zinc-950 shadow-2xl overflow-hidden">
+          <div className="flex items-center gap-1.5 px-4 py-3 border-b border-zinc-200 dark:border-white/10">
             <span className="h-3 w-3 rounded-full bg-red-500/80" />
             <span className="h-3 w-3 rounded-full bg-yellow-500/80" />
             <span className="h-3 w-3 rounded-full bg-green-500/80" />
-            <span className="ml-2 text-xs text-white/40 font-mono">terminal</span>
+            <span className="ml-2 text-xs text-zinc-400 dark:text-white/40 font-mono">terminal</span>
           </div>
           <pre className="p-5 text-sm font-mono leading-7 overflow-x-auto">
             <code>
-              <span className="text-white/40"># Install the SDK</span>
+              <span className="text-zinc-400 dark:text-white/40"># Install the SDK</span>
               {"\n"}
-              <span className="text-green-400">$</span>
-              <span className="text-white"> npm install @watcher24/js</span>
+              <span className="text-green-600 dark:text-green-400">$</span>
+              <span className="text-zinc-800 dark:text-white"> npm install @watcher24/js</span>
               {"\n\n"}
-              <span className="text-white/40"># Send your first event</span>
+              <span className="text-zinc-400 dark:text-white/40"># Send your first event</span>
               {"\n"}
-              <span className="text-blue-400">import</span>
-              <span className="text-white"> {"{"} Watcher24 {"}"} </span>
-              <span className="text-blue-400">from</span>
-              <span className="text-yellow-300"> &apos;@watcher24/js&apos;</span>
+              <span className="text-blue-600 dark:text-blue-400">import</span>
+              <span className="text-zinc-800 dark:text-white"> {"{"} Watcher24 {"}"} </span>
+              <span className="text-blue-600 dark:text-blue-400">from</span>
+              <span className="text-amber-600 dark:text-yellow-300"> &apos;@watcher24/js&apos;</span>
               {"\n\n"}
-              <span className="text-blue-400">const</span>
-              <span className="text-white"> w = </span>
-              <span className="text-blue-400">new</span>
-              <span className="text-yellow-300"> Watcher24</span>
-              <span className="text-white">{"({ apiKey: process.env.W24_KEY })"}</span>
+              <span className="text-blue-600 dark:text-blue-400">const</span>
+              <span className="text-zinc-800 dark:text-white"> w = </span>
+              <span className="text-blue-600 dark:text-blue-400">new</span>
+              <span className="text-amber-600 dark:text-yellow-300"> Watcher24</span>
+              <span className="text-zinc-800 dark:text-white">{"({ apiKey: process.env.W24_KEY })"}</span>
               {"\n\n"}
-              <span className="text-white">w.</span>
-              <span className="text-yellow-300">track</span>
-              <span className="text-white">{"({ event: "}</span>
-              <span className="text-green-300">&apos;user.login&apos;</span>
-              <span className="text-white">{", userId })"}</span>
+              <span className="text-zinc-800 dark:text-white">w.</span>
+              <span className="text-amber-600 dark:text-yellow-300">track</span>
+              <span className="text-zinc-800 dark:text-white">{"({ event: "}</span>
+              <span className="text-green-600 dark:text-green-300">&apos;user.login&apos;</span>
+              <span className="text-zinc-800 dark:text-white">{", userId })"}</span>
               {"\n"}
-              <span className="text-white/40">{"// → event ingested in < 50ms"}</span>
+              <span className="text-zinc-400 dark:text-white/40">{"// → event ingested in < 50ms"}</span>
             </code>
           </pre>
         </div>
