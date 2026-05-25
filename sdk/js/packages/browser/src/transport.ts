@@ -4,6 +4,7 @@
  * Registers and cleans up the visibilitychange listener automatically.
  */
 import type { Client, EventInput, Transport } from "@watcher/core";
+import { toWireEvent } from "@watcher/core";
 
 const RETRY_DELAYS_MS = [100, 200, 400];
 
@@ -28,7 +29,7 @@ export class BrowserTransport implements Transport {
   }
 
   async send(events: EventInput[]): Promise<void> {
-    const body = JSON.stringify(events);
+    const body = JSON.stringify(events.map(toWireEvent));
     let lastErr: Error | null = null;
 
     for (const delay of [0, ...RETRY_DELAYS_MS]) {

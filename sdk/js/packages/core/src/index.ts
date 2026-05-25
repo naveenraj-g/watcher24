@@ -8,3 +8,5 @@ export { EventBuffer } from "./buffer.js";
 export { CaptureEventUseCase } from "./usecases/capture-event.js";
 export { FlushBufferUseCase } from "./usecases/flush-buffer.js";
 export { BackgroundFlusher } from "./flusher.js";
+export { toWireEvent } from "./serializer.js";
+export type { WireEvent } from "./serializer.js";

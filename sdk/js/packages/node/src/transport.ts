@@ -4,7 +4,7 @@
  */
 import * as https from "node:https";
 import * as http from "node:http";
-import type { EventInput, Transport } from "@watcher/core";
+import { toWireEvent, type EventInput, type Transport } from "@watcher/core";
 
 const RETRY_DELAYS_MS = [100, 200, 400];
 
@@ -30,7 +30,7 @@ export class NodeTransport implements Transport {
   }
 
   async send(events: EventInput[]): Promise<void> {
-    const body = JSON.stringify(events);
+    const body = JSON.stringify(events.map(toWireEvent));
     let lastErr: Error | null = null;
 
     for (const delay of [0, ...RETRY_DELAYS_MS]) {
