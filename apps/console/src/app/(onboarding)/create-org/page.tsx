@@ -3,7 +3,6 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { authClient } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,9 +27,7 @@ export default function CreateOrgPage() {
 
   function handleNameChange(value: string) {
     setName(value);
-    if (!slugEdited) {
-      setSlug(toSlug(value));
-    }
+    if (!slugEdited) setSlug(toSlug(value));
   }
 
   function handleSlugChange(value: string) {
@@ -44,23 +41,23 @@ export default function CreateOrgPage() {
 
     setLoading(true);
 
-    const { data, error } = await authClient.organization.create({
-      name: name.trim(),
-      slug: slug.trim(),
+    // Use the server-side route so both cookie-session and OAuth PKCE users
+    // are authenticated correctly when calling IAM's organization endpoints.
+    const res = await fetch("/api/onboarding/org", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: name.trim(), slug: slug.trim() }),
     });
 
-    if (error || !data) {
-      toast.error(error?.message ?? "Failed to create organisation");
+    const data = await res.json();
+
+    if (!res.ok) {
+      toast.error(data.error ?? "Failed to create organisation");
       setLoading(false);
       return;
     }
 
-    // Set the new org as the active org in the session.
-    await authClient.organization.setActive({
-      organizationId: data.id,
-    });
-
-    router.push(`/onboarding/get-api-key?orgId=${data.id}`);
+    router.push(`/onboarding/get-api-key?orgId=${data.orgId}`);
   }
 
   return (

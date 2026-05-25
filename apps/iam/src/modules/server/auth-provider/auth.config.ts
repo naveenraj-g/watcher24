@@ -335,69 +335,22 @@ export const authConfig = {
             select: { activeOrganizationId: true },
           });
 
-          // No UserContext means this is the first session after signup.
-          // Run org membership setup here so the session gets a valid
-          // activeOrganizationId immediately — avoids the race between
-          // user.create.after and session creation.
+          // First-ever session for this user — create a UserContext with no
+          // active org so the console onboarding wizard runs on first login.
+          // Org creation and activation are handled there, not here.
           if (!userCtx) {
-            try {
-              const user = await prisma.user.findUnique({
-                where: { id: session.userId },
-                select: { username: true, name: true },
-              });
-
-              // Build a unique org slug from username: e.g. "naveen-x4k2"
-              const base = (user?.username ?? user?.name ?? "user")
-                .toLowerCase()
-                .replace(/[^a-z0-9]/g, "")
-                .slice(0, 20);
-              const suffix = Math.random().toString(36).slice(2, 6);
-              const orgSlug = `${base}-${suffix}`;
-              const orgName = user?.username ?? user?.name ?? "My Organization";
-
-              const newOrg = await prisma.organization.create({
-                data: {
-                  id: randomUUID(),
-                  name: orgName,
-                  slug: orgSlug,
-                  createdAt: new Date(),
-                },
-              });
-
-              await prisma.$transaction(async (tx) => {
-                await tx.member.create({
-                  data: {
-                    id: randomUUID(),
-                    organizationId: newOrg.id,
-                    userId: session.userId,
-                    role: "owner",
-                    createdAt: new Date(),
-                  },
-                });
-
-                await tx.userContext.create({
-                  data: {
-                    userId: session.userId,
-                    activeOrganizationId: newOrg.id,
-                    activeRoleId: null,
-                  },
-                });
-              });
-
-              return {
-                data: { ...session, activeOrganizationId: newOrg.id },
-              };
-            } catch {
-              // Don't block session creation if org setup fails
-            }
-
-            return {
-              data: { ...session, activeOrganizationId: null },
-            };
+            await prisma.userContext.create({
+              data: {
+                userId: session.userId,
+                activeOrganizationId: null,
+                activeRoleId: null,
+              },
+            });
+            return { data: { ...session, activeOrganizationId: null } };
           }
 
-          // Existing user — prefer stored activeOrganizationId, fall back to
-          // earliest membership if the context row has no org set yet.
+          // Returning user — restore their last active org, falling back to
+          // their earliest membership if the context row has no org yet.
           const activeOrganizationId =
             userCtx.activeOrganizationId ??
             (
@@ -409,9 +362,7 @@ export const authConfig = {
             )?.organizationId ??
             null;
 
-          return {
-            data: { ...session, activeOrganizationId },
-          };
+          return { data: { ...session, activeOrganizationId } };
         },
       },
     },
