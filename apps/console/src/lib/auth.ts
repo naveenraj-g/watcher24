@@ -12,7 +12,10 @@ import { apiKeyClient } from "@better-auth/api-key/client";
 export const authClient = createAuthClient({
   baseURL: process.env.NEXT_PUBLIC_APP_URL!,
   plugins: [
-    organizationClient(),
+    organizationClient({
+      // Mirror the server-side teams config so TypeScript infers team-aware types.
+      teams: { enabled: true },
+    }),
     apiKeyClient(),
   ],
 });

@@ -6,6 +6,7 @@
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { authClient } from "@/lib/auth";
+import { OrgSwitcher } from "@/components/layout/OrgSwitcher";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -15,7 +16,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Moon, Sun, LogOut, User } from "lucide-react";
 
 interface HeaderProps {
@@ -43,11 +43,7 @@ export function Header({ user, orgId }: HeaderProps) {
   return (
     <header className="flex h-14 items-center justify-between border-b bg-background px-4">
       <div className="flex items-center gap-3">
-        {orgId && (
-          <Badge variant="outline" className="text-xs font-mono">
-            {orgId.slice(0, 8)}…
-          </Badge>
-        )}
+        {orgId && <OrgSwitcher activeOrgId={orgId} />}
       </div>
 
       <div className="flex items-center gap-2">
