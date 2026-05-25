@@ -20,7 +20,7 @@ export function CopyButton({ text }: Props) {
   return (
     <button
       onClick={copy}
-      className="absolute right-3 top-3 rounded-md p-1.5 text-muted-foreground/60 transition-colors hover:bg-white/10 hover:text-muted-foreground"
+      className="absolute right-3 top-3 rounded-md p-1.5 text-muted-foreground/60 transition-colors hover:bg-muted hover:text-muted-foreground"
       aria-label="Copy code"
     >
       {copied ? (

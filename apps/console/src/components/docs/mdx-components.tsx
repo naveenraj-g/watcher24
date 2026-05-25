@@ -28,10 +28,10 @@ function Pre({
 }: ComponentPropsWithoutRef<"pre"> & { "data-language"?: string }) {
   const raw = extractText(children);
   return (
-    <div className="relative my-6 overflow-hidden rounded-lg border bg-[#0d1117]">
+    <div className="relative my-6 overflow-hidden rounded-lg border border-border">
       {props["data-language"] && (
-        <div className="flex items-center border-b border-white/10 px-4 py-2">
-          <span className="text-xs text-zinc-400 font-mono">
+        <div className="flex items-center border-b border-border bg-muted/50 px-4 py-2">
+          <span className="text-xs text-muted-foreground font-mono">
             {props["data-language"]}
           </span>
         </div>
