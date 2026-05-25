@@ -24,13 +24,7 @@ Our `/llms.txt` covers:
 - Environment variable names
 - Common integration patterns
 
-You can view it directly at:
-
-```
-https://watcher24.io/llms.txt
-```
-
-Or fetch it programmatically:
+You can view or fetch it directly:
 
 ```bash
 curl https://watcher24.io/llms.txt
@@ -74,7 +68,7 @@ curl https://watcher24.io/llms-full.txt
 ```
 
 <Callout type="note">
-`llms-full.txt` is regenerated on every documentation deploy. It always reflects the latest SDK version and API.
+`llms-full.txt` is regenerated on every request and always reflects the latest SDK version and API.
 </Callout>
 
 ## Format reference
@@ -122,3 +116,20 @@ async function loadWatcherContext(): Promise<string> {
   return res.text();
 }
 ```
+
+## Skill files
+
+For AI coding assistants that need deeper integration guidance, we also publish per-language skill files:
+
+```bash
+# JavaScript / Node.js / React / Next.js
+curl https://watcher24.io/skills/watcher24-js.md
+
+# Python / FastAPI / Django
+curl https://watcher24.io/skills/watcher24-python.md
+
+# Skill index
+curl https://watcher24.io/skills.md
+```
+
+See [Skills →](/docs/ai/skills) for how to load these into Claude Code, Cursor, and Copilot.
