@@ -64,7 +64,7 @@ export function DocsHeader() {
           {/* GitHub */}
           <Button variant="ghost" size="icon" asChild className="hidden sm:flex">
             <a
-              href="https://github.com/watcher24"
+              href="https://github.com/naveenraj-g/watcher24"
               target="_blank"
               rel="noopener noreferrer"
               aria-label="GitHub"
