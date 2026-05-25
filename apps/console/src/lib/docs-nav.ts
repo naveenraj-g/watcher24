@@ -38,6 +38,7 @@ export const docsNav: NavSection[] = [
     items: [
       { title: "Event Types", href: "/docs/concepts/events" },
       { title: "Organisations", href: "/docs/concepts/organisations" },
+      { title: "Apps", href: "/docs/concepts/apps" },
       { title: "Data Retention", href: "/docs/concepts/retention" },
     ],
   },
