@@ -40,3 +40,7 @@ Thumbs.db
 # Docker volumes (never commit these)
 infrastructure/clickhouse/data/
 infrastructure/postgres/data/
+
+.agents
+.claude
+skills-lock.json

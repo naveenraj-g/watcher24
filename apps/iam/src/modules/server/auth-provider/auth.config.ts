@@ -22,6 +22,8 @@ import {
   customSession,
 } from "better-auth/plugins";
 import { apiKey } from "@better-auth/api-key";
+import { stripe } from "@better-auth/stripe";
+import Stripe from "stripe";
 // import { agentAuth } from "@better-auth/agent-auth";
 import { defaultStatements, adminAc } from "better-auth/plugins/admin/access";
 // import { createFromOpenAPI } from "@better-auth/agent-auth/openapi";
@@ -708,6 +710,38 @@ export const authConfig = {
     }),
 
     apiKey({ defaultPrefix: "wtch_" }),
+
+    stripe({
+      stripeClient: new Stripe(process.env.STRIPE_SECRET_KEY ?? ""),
+      stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET ?? "",
+
+      // Create a Stripe customer record when a user signs up so billing
+      // info is available before the user ever starts a subscription.
+      createCustomerOnSignUp: true,
+
+      subscription: {
+        enabled: true,
+        plans: [
+          {
+            // Free tier — no priceId; users start here by default.
+            name: "free",
+            limits: { events: 100_000 },
+          },
+          {
+            name: "pro",
+            priceId: process.env.STRIPE_PRO_MONTHLY_PRICE_ID,
+            annualDiscountPriceId: process.env.STRIPE_PRO_ANNUAL_PRICE_ID,
+            limits: { events: 5_000_000 },
+          },
+          {
+            name: "enterprise",
+            priceId: process.env.STRIPE_ENTERPRISE_MONTHLY_PRICE_ID,
+            annualDiscountPriceId: process.env.STRIPE_ENTERPRISE_ANNUAL_PRICE_ID,
+            limits: { events: -1 },
+          },
+        ],
+      },
+    }),
 
     // agentAuth({
     //   ...createFromOpenAPI(spec, {

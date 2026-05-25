@@ -12,6 +12,7 @@ import { IAuthService } from "../core/auth/domain/interfaces/auth.service.interf
 import { IEmailService } from "../core/common/email/domain/interfaces/email.service.interface";
 import { IUserPreferenceService } from "../core/settings/domain/interfaces/userPreference.service.interface";
 import { IUserContextService } from "../core/admin/domain/interfaces/usercontext.service.interface";
+import { IBillingService } from "../core/admin/domain/interfaces/billing.service.interface";
 
 export const DI_SYMBOLS = {
   // Repositories
@@ -31,6 +32,7 @@ export const DI_SYMBOLS = {
   IPreferenceTemplatesService: Symbol.for("IPreferenceTemplatesService"),
   IUserPreferenceService: Symbol.for("IUserPreferenceService"),
   IUserContextService: Symbol.for("IUserContextService"),
+  IBillingService: Symbol.for("IBillingService"),
 };
 
 export interface DI_RETURN_TYPES {
@@ -51,4 +53,5 @@ export interface DI_RETURN_TYPES {
   IPreferenceTemplatesService: IPreferenceTemplatesService;
   IUserPreferenceService: IUserPreferenceService;
   IUserContextService: IUserContextService;
+  IBillingService: IBillingService;
 }

@@ -15,6 +15,7 @@ import {
   registerPreferenceTemplatesModule,
   registerUserPreferenceModule,
   registerUserContextModule,
+  registerBillingModule,
 } from "./modules";
 
 const ApplicationContainer = createContainer();
@@ -33,6 +34,7 @@ registerApiKeysModule(ApplicationContainer);
 registerPreferenceTemplatesModule(ApplicationContainer);
 registerUserPreferenceModule(ApplicationContainer);
 registerUserContextModule(ApplicationContainer);
+registerBillingModule(ApplicationContainer);
 
 export const getInjection = <K extends keyof typeof DI_SYMBOLS>(
   symbol: K,

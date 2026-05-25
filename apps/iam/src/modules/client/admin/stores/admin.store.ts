@@ -79,7 +79,9 @@ export type ModalType =
   | "editPreferenceTemplate"
   | "deletePreferenceTemplate"
   // User Context
-  | "setUserContext";
+  | "setUserContext"
+  // Billing
+  | "cancelSubscription";
 
 export interface ModalData {
   // Users
@@ -198,6 +200,10 @@ export interface ModalData {
   userContextUserEmail?: string;
   userContextActiveOrganizationId?: string | null;
   userContextActiveRoleId?: string | null;
+  // Billing
+  subscriptionId?: string;
+  subscriptionPlan?: string;
+  subscriptionUserEmail?: string;
 }
 
 interface IAdminStore {
