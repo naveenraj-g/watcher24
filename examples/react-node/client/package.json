@@ -9,9 +9,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@watcher/browser": "file:../../../../sdk/js/packages/browser",
-    "@watcher/react": "file:../../../../sdk/js/packages/react",
-    "@watcher/core": "file:../../../../sdk/js/packages/core",
+    "@watcher/browser": "workspace:*",
+    "@watcher/react": "workspace:*",
+    "@watcher/core": "workspace:*",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },

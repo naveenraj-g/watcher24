@@ -22,8 +22,8 @@ export class BackgroundFlusher {
   start(): void {
     this.timer = setInterval(() => void this.tick(), this.flushInterval);
     // Timers should not prevent Node.js process from exiting.
-    if (typeof this.timer === "object" && "unref" in this.timer) {
-      (this.timer as NodeJS.Timeout).unref();
+    if (this.timer !== null && typeof this.timer === "object" && "unref" in this.timer) {
+      (this.timer as { unref: () => void }).unref();
     }
   }
 

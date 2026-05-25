@@ -8,11 +8,11 @@
     "start": "next start"
   },
   "dependencies": {
-    "@watcher/nextjs": "file:../../sdk/js/packages/nextjs",
-    "@watcher/browser": "file:../../sdk/js/packages/browser",
-    "@watcher/react": "file:../../sdk/js/packages/react",
-    "@watcher/core": "file:../../sdk/js/packages/core",
-    "@watcher/node": "file:../../sdk/js/packages/node",
+    "@watcher/nextjs": "workspace:*",
+    "@watcher/browser": "workspace:*",
+    "@watcher/react": "workspace:*",
+    "@watcher/core": "workspace:*",
+    "@watcher/node": "workspace:*",
     "next": "^15.0.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
