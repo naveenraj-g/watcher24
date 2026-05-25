@@ -13,6 +13,7 @@ import {
   BarChart2,
   Settings,
   Zap,
+  ShieldAlert,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -25,10 +26,14 @@ const NAV_ITEMS = [
   { href: "/settings", label: "Settings", icon: Settings },
 ] as const;
 
+interface AppSidebarProps {
+  userRole?: string | null;
+}
+
 // AppSidebar renders the full-height navigation panel.
 // On desktop it is always visible; on mobile it slides in from the left (handled
 // by the parent layout with a hamburger trigger in the Header).
-export function AppSidebar() {
+export function AppSidebar({ userRole }: AppSidebarProps) {
   const pathname = usePathname();
 
   return (
@@ -62,6 +67,19 @@ export function AppSidebar() {
           );
         })}
       </nav>
+
+      {/* Admin link — only shown to superadmins */}
+      {userRole === "superadmin" && (
+        <div className="border-t p-2">
+          <Link
+            href="/admin/overview"
+            className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-sidebar-accent/60 hover:text-destructive transition-colors"
+          >
+            <ShieldAlert className="h-4 w-4 shrink-0" />
+            Admin
+          </Link>
+        </div>
+      )}
 
       {/* Footer */}
       <div className="border-t p-3">

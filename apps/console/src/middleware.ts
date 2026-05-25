@@ -11,7 +11,9 @@ const PUBLIC_PATHS = [
   "/forgot-password",
   "/reset-password",
   "/verify-email",
+  "/docs",
   "/api/auth",
+  "/api/docs",
   "/_next",
   "/favicon",
 ];
