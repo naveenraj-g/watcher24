@@ -14,6 +14,11 @@ type APIKey struct {
 	// This is the org that owns the key and will own all events submitted with it.
 	OrganizationID string
 
+	// AppID is the application this key is scoped to, resolved from the apikey row.
+	// Empty for legacy org-scoped keys that predate the multi-app feature.
+	// When non-empty, the gateway uses it instead of the SDK-supplied x-app-id header.
+	AppID string
+
 	// Permissions is an optional JSON-encoded list of allowed actions.
 	// nil means unrestricted (all event types accepted).
 	Permissions *string

@@ -78,22 +78,26 @@ func (h *EventsHandler) handle(c *fiber.Ctx, forcedType string) error {
 		return respondError(c, fiber.StatusInternalServerError, "missing org context", "INTERNAL_ERROR")
 	}
 
+	// Resolve the app ID from the key (preferred) or fall back to the header
+	// for backwards compatibility with SDKs that set x-app-id manually.
+	appID, _ := c.Locals(middleware.LocalApplicationID).(string)
+
 	// Detect if the body is an array (batch) or a single object.
 	body := c.Body()
 	if len(body) > 0 && body[0] == '[' {
-		return h.handleBatch(c, orgID, forcedType)
+		return h.handleBatch(c, orgID, appID, forcedType)
 	}
-	return h.handleSingle(c, orgID, forcedType)
+	return h.handleSingle(c, orgID, appID, forcedType)
 }
 
 // handleSingle processes a single event from the request body.
-func (h *EventsHandler) handleSingle(c *fiber.Ctx, orgID, forcedType string) error {
+func (h *EventsHandler) handleSingle(c *fiber.Ctx, orgID, appID, forcedType string) error {
 	var req eventRequest
 	if err := c.BodyParser(&req); err != nil {
 		return respondError(c, fiber.StatusBadRequest, "invalid JSON body", "INVALID_PAYLOAD")
 	}
 
-	input := h.buildInput(req, orgID, forcedType, c)
+	input := h.buildInput(req, orgID, appID, forcedType, c)
 	if err := h.ingestUC.Execute(c.Context(), input); err != nil {
 		return mapUseCaseError(c, err)
 	}
@@ -102,7 +106,7 @@ func (h *EventsHandler) handleSingle(c *fiber.Ctx, orgID, forcedType string) err
 }
 
 // handleBatch processes an array of events from the request body.
-func (h *EventsHandler) handleBatch(c *fiber.Ctx, orgID, forcedType string) error {
+func (h *EventsHandler) handleBatch(c *fiber.Ctx, orgID, appID, forcedType string) error {
 	var reqs []eventRequest
 	if err := c.BodyParser(&reqs); err != nil {
 		return respondError(c, fiber.StatusBadRequest, "invalid JSON array", "INVALID_PAYLOAD")
@@ -110,7 +114,7 @@ func (h *EventsHandler) handleBatch(c *fiber.Ctx, orgID, forcedType string) erro
 
 	inputs := make([]usecases.IngestInput, len(reqs))
 	for i, req := range reqs {
-		inputs[i] = h.buildInput(req, orgID, forcedType, c)
+		inputs[i] = h.buildInput(req, orgID, appID, forcedType, c)
 	}
 
 	if err := h.ingestUC.ExecuteBatch(c.Context(), usecases.IngestBatchInput{Events: inputs}); err != nil {
@@ -123,15 +127,22 @@ func (h *EventsHandler) handleBatch(c *fiber.Ctx, orgID, forcedType string) erro
 // buildInput converts the HTTP request into a use case input struct.
 // Enrichment metadata (IP, SDK version, region) is read from the request here
 // and passed to the use case — the use case itself doesn't know about HTTP.
-func (h *EventsHandler) buildInput(req eventRequest, orgID, forcedType string, c *fiber.Ctx) usecases.IngestInput {
+// appID is resolved from the API key; req.ApplicationID is used only as a
+// fallback for legacy SDKs that set it manually and have no scoped key.
+func (h *EventsHandler) buildInput(req eventRequest, orgID, appID, forcedType string, c *fiber.Ctx) usecases.IngestInput {
 	eventType := req.EventType
 	if forcedType != "" {
 		eventType = forcedType
 	}
 
+	resolvedAppID := appID
+	if resolvedAppID == "" {
+		resolvedAppID = req.ApplicationID
+	}
+
 	return usecases.IngestInput{
 		OrganizationID: orgID,
-		ApplicationID:  req.ApplicationID,
+		ApplicationID:  resolvedAppID,
 		Environment:    req.Environment,
 		EventType:      domain.EventType(eventType),
 		Severity:       domain.Severity(req.Severity),

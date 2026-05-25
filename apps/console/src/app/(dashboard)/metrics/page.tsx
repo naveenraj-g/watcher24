@@ -1,4 +1,6 @@
 // Metrics explorer page — shows metric events with numeric payload values.
+// Reads the watcher_app cookie to filter by the currently selected app.
+import { cookies } from "next/headers";
 import { getServerSession } from "@/lib/auth-server";
 import { EventsExplorer } from "@/components/explorer/EventsExplorer";
 
@@ -11,6 +13,8 @@ export default async function MetricsPage({
 }) {
   const session = await getServerSession();
   const orgId = session?.session.activeOrganizationId ?? "";
+  const jar = await cookies();
+  const activeAppId = jar.get("watcher_app")?.value ?? null;
 
   const sp = await searchParams;
 
@@ -27,6 +31,7 @@ export default async function MetricsPage({
         eventType="metric"
         searchParams={sp}
         apiPath="/api/events/metrics"
+        appId={activeAppId}
       />
     </div>
   );

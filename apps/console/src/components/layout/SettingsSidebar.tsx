@@ -4,13 +4,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Building2, Users, UsersRound, Key, CreditCard } from "lucide-react";
+import { Building2, Users, UsersRound, Key, CreditCard, AppWindow } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const SETTINGS_NAV = [
   { href: "/settings/org", label: "Organisation", icon: Building2 },
   { href: "/settings/members", label: "Members", icon: Users },
   { href: "/settings/teams", label: "Teams", icon: UsersRound },
+  { href: "/settings/apps", label: "Apps", icon: AppWindow },
   { href: "/settings/api-keys", label: "API Keys", icon: Key },
   { href: "/settings/billing", label: "Billing", icon: CreditCard },
 ] as const;

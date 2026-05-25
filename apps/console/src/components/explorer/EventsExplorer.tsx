@@ -40,12 +40,14 @@ interface EventsExplorerProps {
   eventType: string;
   searchParams: Record<string, string>;
   apiPath: string;
+  appId?: string | null;
 }
 
 export function EventsExplorer({
   orgId,
   eventType,
   apiPath,
+  appId,
 }: EventsExplorerProps) {
   const [search, setSearch]               = useState("");
   const [severity, setSeverity]           = useState("all");
@@ -54,13 +56,14 @@ export function EventsExplorer({
   const PAGE_SIZE = 50;
 
   const { data, isFetching, refetch } = useQuery<EventRow[]>({
-    queryKey: [apiPath, orgId, eventType, search, severity, page],
+    queryKey: [apiPath, orgId, eventType, appId, search, severity, page],
     queryFn: async () => {
       const params = new URLSearchParams({
         orgId,
         limit: String(PAGE_SIZE),
         offset: String(page * PAGE_SIZE),
       });
+      if (appId) params.set("appId", appId);
       if (search) params.set("search", search);
       if (severity !== "all") params.set("severity", severity);
       const res = await fetch(`${apiPath}?${params}`);

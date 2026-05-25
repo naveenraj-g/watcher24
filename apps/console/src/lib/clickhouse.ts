@@ -173,6 +173,7 @@ export async function queryTraceSpans(
 // queryEvents is a generic paginated query used by all explorer pages.
 export async function queryEvents(opts: {
   orgId: string;
+  appId?: string;
   eventType?: string;
   severity?: string;
   search?: string;
@@ -183,6 +184,7 @@ export async function queryEvents(opts: {
 }): Promise<EventRow[]> {
   const {
     orgId,
+    appId,
     eventType,
     severity,
     search,
@@ -196,6 +198,7 @@ export async function queryEvents(opts: {
     "organization_id = {orgId: String}",
   ];
 
+  if (appId) conditions.push("application_id = {appId: String}");
   if (eventType) conditions.push("event_type = {eventType: String}");
   if (severity) conditions.push("severity = {severity: String}");
   if (search) conditions.push("message ILIKE {search: String}");
@@ -213,6 +216,7 @@ export async function queryEvents(opts: {
     `,
     query_params: {
       orgId,
+      appId: appId ?? "",
       eventType: eventType ?? "",
       severity: severity ?? "",
       search: search ? `%${search}%` : "",

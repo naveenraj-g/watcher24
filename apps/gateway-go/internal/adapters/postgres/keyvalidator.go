@@ -78,6 +78,7 @@ func (a *KeyValidatorAdapter) Validate(ctx context.Context, rawKey string) (*dom
 		id           string
 		referenceID  string
 		activeOrgID  *string // non-nil when referenceId is a user with an active org
+		appID        *string // non-nil when the key is scoped to a specific application
 		enabled      bool
 		expiresAt    *time.Time
 		permissions  *string
@@ -85,15 +86,17 @@ func (a *KeyValidatorAdapter) Validate(ctx context.Context, rawKey string) (*dom
 
 	// LEFT JOIN userContext so that when referenceId is a user ID we can
 	// resolve their activeOrganizationId in one round-trip.
+	// Also select app_id to support per-application key scoping.
 	err := a.pool.QueryRow(ctx,
 		`SELECT a.id, a."referenceId", a.enabled, a."expiresAt", a.permissions,
-		        uc."activeOrganizationId"
+		        uc."activeOrganizationId",
+		        a.app_id
 		 FROM apikey a
 		 LEFT JOIN "userContext" uc ON uc."userId" = a."referenceId"
 		 WHERE a.key = $1
 		 LIMIT 1`,
 		hash,
-	).Scan(&id, &referenceID, &enabled, &expiresAt, &permissions, &activeOrgID)
+	).Scan(&id, &referenceID, &enabled, &expiresAt, &permissions, &activeOrgID, &appID)
 
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -118,9 +121,15 @@ func (a *KeyValidatorAdapter) Validate(ctx context.Context, rawKey string) (*dom
 		orgID = *activeOrgID
 	}
 
+	resolvedAppID := ""
+	if appID != nil {
+		resolvedAppID = *appID
+	}
+
 	return &domain.APIKey{
 		ID:             id,
 		OrganizationID: orgID,
+		AppID:          resolvedAppID,
 		Permissions:    permissions,
 		ExpiresAt:      expiresAt,
 	}, nil

@@ -1,6 +1,8 @@
 // Dashboard layout — wraps all /overview, /audit, /logs, etc. pages.
 // Session is read server-side once here so inner pages don't re-fetch.
+// Also reads the watcher_app cookie to propagate the active app filter.
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { getServerSession } from "@/lib/auth-server";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { Header } from "@/components/layout/Header";
@@ -22,12 +24,14 @@ export default async function DashboardLayout({
   }
 
   const orgId = session.session.activeOrganizationId;
+  const jar = await cookies();
+  const activeAppId = jar.get("watcher_app")?.value ?? null;
 
   return (
     <div className="flex h-svh overflow-hidden bg-background">
       <AppSidebar userRole={session.user.role} />
       <div className="flex flex-1 flex-col overflow-hidden">
-        <Header user={session.user} orgId={orgId} />
+        <Header user={session.user} orgId={orgId} activeAppId={activeAppId} />
         <main className="flex-1 overflow-y-auto p-6">{children}</main>
       </div>
     </div>

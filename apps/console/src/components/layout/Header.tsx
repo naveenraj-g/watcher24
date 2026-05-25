@@ -6,6 +6,7 @@
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth";
 import { OrgSwitcher } from "@/components/layout/OrgSwitcher";
+import { AppSwitcher } from "@/components/layout/AppSwitcher";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import {
@@ -21,10 +22,11 @@ import { LogOut, User } from "lucide-react";
 interface HeaderProps {
   user: { name?: string | null; email: string };
   orgId: string;
+  activeAppId: string | null;
 }
 
 // Header renders the top application bar with user info and controls.
-export function Header({ user, orgId }: HeaderProps) {
+export function Header({ user, orgId, activeAppId }: HeaderProps) {
   const router = useRouter();
 
   async function handleSignOut() {
@@ -47,6 +49,7 @@ export function Header({ user, orgId }: HeaderProps) {
     <header className="flex h-14 items-center justify-between border-b bg-background px-4">
       <div className="flex items-center gap-3">
         {orgId && <OrgSwitcher activeOrgId={orgId} />}
+        <AppSwitcher activeAppId={activeAppId} />
       </div>
 
       <div className="flex items-center gap-2">

@@ -24,6 +24,7 @@ export async function GET(req: NextRequest) {
 
   const events = await queryEvents({
     orgId: sessionOrgId,
+    appId: sp.get("appId") ?? undefined,
     eventType: "audit",
     search: sp.get("search") ?? undefined,
     severity: sp.get("severity") ?? undefined,

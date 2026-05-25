@@ -18,6 +18,10 @@ import (
 const (
 	LocalOrganizationID = "organization_id"
 	LocalAPIKeyID       = "api_key_id"
+	// LocalApplicationID holds the app_id resolved from the API key row.
+	// Empty for legacy keys that have no app_id; handlers fall back to the
+	// x-app-id header in that case for backwards compatibility.
+	LocalApplicationID = "application_id"
 )
 
 // Auth returns a Fiber middleware that validates the API key on every request.
@@ -45,6 +49,7 @@ func Auth(validator ports.KeyValidator) fiber.Handler {
 		// re-querying the database.
 		c.Locals(LocalOrganizationID, apiKey.OrganizationID)
 		c.Locals(LocalAPIKeyID, apiKey.ID)
+		c.Locals(LocalApplicationID, apiKey.AppID)
 
 		return c.Next()
 	}
