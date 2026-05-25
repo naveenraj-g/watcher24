@@ -170,7 +170,7 @@ export default function AppDetailPage({
                   <div className="space-y-0.5 min-w-0">
                     <p className="text-sm font-medium truncate">{key.name ?? "—"}</p>
                     <p className="text-xs text-muted-foreground font-mono">
-                      {key.start}… · Created {key.created_at ? formatDate(key.created_at) : "—"}
+                      {key.start}… · Created {key.createdAt ? formatDate(key.createdAt) : "—"}
                     </p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0 ml-2">

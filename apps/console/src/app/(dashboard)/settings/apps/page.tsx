@@ -174,7 +174,7 @@ export default function AppsPage() {
                     <div className="min-w-0 space-y-0.5">
                       <p className="text-sm font-medium truncate">{app.name}</p>
                       <p className="text-xs text-muted-foreground font-mono">
-                        {app.slug} · Created {formatDate(app.created_at)}
+                        {app.slug} · Created {formatDate(app.createdAt)}
                       </p>
                       <CopyIdButton id={app.id} />
                     </div>
