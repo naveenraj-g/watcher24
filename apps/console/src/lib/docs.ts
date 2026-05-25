@@ -48,18 +48,24 @@ export function getDoc(slug: string[]): {
 // Extract h2 and h3 headings from raw MDX content for the right-side TOC.
 export function extractHeadings(content: string): DocHeading[] {
   const headings: DocHeading[] = [];
+  const seen = new Map<string, number>();
   const lines = content.split("\n");
+
   for (const line of lines) {
     const h2 = line.match(/^## (.+)$/);
     const h3 = line.match(/^### (.+)$/);
-    if (h2) {
-      const text = h2[1].replace(/`/g, "");
-      headings.push({ id: slugify(text), text, level: 2 });
-    } else if (h3) {
-      const text = h3[1].replace(/`/g, "");
-      headings.push({ id: slugify(text), text, level: 3 });
-    }
+    const match = h2 ?? h3;
+    if (!match) continue;
+
+    const text = match[1].replace(/`/g, "");
+    const base = slugify(text);
+    const count = seen.get(base) ?? 0;
+    const id = count === 0 ? base : `${base}-${count}`;
+    seen.set(base, count + 1);
+
+    headings.push({ id, text, level: h2 ? 2 : 3 });
   }
+
   return headings;
 }
 

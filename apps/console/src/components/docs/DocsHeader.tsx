@@ -8,6 +8,7 @@ import { useState } from "react";
 import { Github, Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { DocsSearch } from "./DocsSearch";
 import { docsNav } from "@/lib/docs-nav";
 
@@ -56,6 +57,9 @@ export function DocsHeader() {
 
           {/* Search */}
           <DocsSearch />
+
+          {/* Theme toggle */}
+          <ThemeToggle />
 
           {/* GitHub */}
           <Button variant="ghost" size="icon" asChild className="hidden sm:flex">

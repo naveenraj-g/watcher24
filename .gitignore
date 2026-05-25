@@ -44,3 +44,5 @@ infrastructure/postgres/data/
 .agents
 .claude
 skills-lock.json
+
+logs

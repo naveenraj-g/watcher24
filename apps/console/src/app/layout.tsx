@@ -17,8 +17,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Watcher24 Dashboard",
-  description: "Observability and audit logging platform",
+  title: {
+    default: "Watcher24 — Observability & Audit Logging",
+    template: "%s · Watcher24",
+  },
+  description:
+    "Real-time observability, audit logging, and telemetry for modern applications. Ingest events from any SDK in minutes.",
 };
 
 export default function RootLayout({

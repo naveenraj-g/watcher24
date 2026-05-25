@@ -4,7 +4,6 @@ import type { NextConfig } from "next";
 // Requests to /api/auth/* are proxied to IAM so session cookies are set
 // on the console's origin, which allows SSR session reads to work.
 const nextConfig: NextConfig = {
-  reactCompiler: true,
   typescript: {
     ignoreBuildErrors: true,
   },

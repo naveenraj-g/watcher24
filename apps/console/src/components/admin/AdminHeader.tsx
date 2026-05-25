@@ -2,6 +2,7 @@
 // Shows a "Superadmin" badge and the authenticated user's name.
 import { ShieldAlert } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 interface Props {
   userName: string;
@@ -19,6 +20,7 @@ export function AdminHeader({ userName, userEmail }: Props) {
         </Badge>
       </div>
       <div className="flex-1" />
+      <ThemeToggle />
       <div className="text-xs text-muted-foreground text-right">
         <p className="font-medium text-foreground">{userName}</p>
         <p>{userEmail}</p>

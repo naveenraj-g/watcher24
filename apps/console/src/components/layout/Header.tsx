@@ -4,10 +4,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useTheme } from "next-themes";
 import { authClient } from "@/lib/auth";
 import { OrgSwitcher } from "@/components/layout/OrgSwitcher";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,7 +16,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Moon, Sun, LogOut, User } from "lucide-react";
+import { LogOut, User } from "lucide-react";
 
 interface HeaderProps {
   user: { name?: string | null; email: string };
@@ -26,7 +26,6 @@ interface HeaderProps {
 // Header renders the top application bar with user info and controls.
 export function Header({ user, orgId }: HeaderProps) {
   const router = useRouter();
-  const { theme, setTheme } = useTheme();
 
   async function handleSignOut() {
     await authClient.signOut();
@@ -47,16 +46,7 @@ export function Header({ user, orgId }: HeaderProps) {
       </div>
 
       <div className="flex items-center gap-2">
-        {/* Theme toggle */}
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-          aria-label="Toggle theme"
-        >
-          <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-          <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-        </Button>
+        <ThemeToggle />
 
         {/* User menu */}
         <DropdownMenu>
