@@ -73,7 +73,7 @@ export function HomeNav({ isAuthenticated }: HomeNavProps) {
                 <Link href="/login">Sign in</Link>
               </Button>
               <Button asChild size="sm">
-                <Link href="/signup">Get started</Link>
+                <Link href="/login">Get started</Link>
               </Button>
             </>
           )}
@@ -116,7 +116,7 @@ export function HomeNav({ isAuthenticated }: HomeNavProps) {
                   <Link href="/login">Sign in</Link>
                 </Button>
                 <Button asChild size="sm">
-                  <Link href="/signup">Get started free</Link>
+                  <Link href="/login">Get started free</Link>
                 </Button>
               </>
             )}

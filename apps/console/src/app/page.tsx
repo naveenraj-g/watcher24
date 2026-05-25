@@ -66,7 +66,7 @@ export default async function HomePage() {
             ) : (
               <>
                 <Button asChild size="lg">
-                  <Link href="/signup">
+                  <Link href="/login">
                     Start for free <ArrowRight className="ml-2 h-4 w-4" />
                   </Link>
                 </Button>
@@ -262,7 +262,7 @@ export default async function HomePage() {
                   variant={plan.highlighted ? "default" : "outline"}
                   className="w-full"
                 >
-                  <Link href={isAuthenticated ? "/settings/billing/plans" : "/signup"}>
+                  <Link href={isAuthenticated ? "/settings/billing/plans" : "/login"}>
                     {plan.cta}
                   </Link>
                 </Button>
@@ -291,7 +291,7 @@ export default async function HomePage() {
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <Button asChild size="lg" variant="secondary">
-              <Link href={isAuthenticated ? "/overview" : "/signup"}>
+              <Link href={isAuthenticated ? "/overview" : "/login"}>
                 {isAuthenticated ? "Go to Dashboard" : "Create free account"}
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
