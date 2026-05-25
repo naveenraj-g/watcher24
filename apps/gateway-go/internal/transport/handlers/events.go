@@ -78,8 +78,10 @@ func (h *EventsHandler) handle(c *fiber.Ctx, forcedType string) error {
 		return respondError(c, fiber.StatusInternalServerError, "missing org context", "INTERNAL_ERROR")
 	}
 
-	// Resolve the app ID from the key (preferred) or fall back to the header
-	// for backwards compatibility with SDKs that set x-app-id manually.
+	// Resolve the app ID from the key only. SDK-provided appId values are
+	// ignored — application_id is only set when the key is explicitly linked
+	// to an app in the console. This prevents arbitrary strings from being
+	// stored as application_id in ClickHouse.
 	appID, _ := c.Locals(middleware.LocalApplicationID).(string)
 
 	// Detect if the body is an array (batch) or a single object.
@@ -127,18 +129,17 @@ func (h *EventsHandler) handleBatch(c *fiber.Ctx, orgID, appID, forcedType strin
 // buildInput converts the HTTP request into a use case input struct.
 // Enrichment metadata (IP, SDK version, region) is read from the request here
 // and passed to the use case — the use case itself doesn't know about HTTP.
-// appID is resolved from the API key; req.ApplicationID is used only as a
-// fallback for legacy SDKs that set it manually and have no scoped key.
+// appID comes exclusively from the API key's linked app (set by auth middleware).
+// Any appId value in the request body or SDK config is intentionally ignored —
+// application_id is only trusted when the key is linked to an app in the console.
 func (h *EventsHandler) buildInput(req eventRequest, orgID, appID, forcedType string, c *fiber.Ctx) usecases.IngestInput {
 	eventType := req.EventType
 	if forcedType != "" {
 		eventType = forcedType
 	}
 
+	// appID is already the authoritative value from the key — no fallback to req.ApplicationID.
 	resolvedAppID := appID
-	if resolvedAppID == "" {
-		resolvedAppID = req.ApplicationID
-	}
 
 	return usecases.IngestInput{
 		OrganizationID: orgID,

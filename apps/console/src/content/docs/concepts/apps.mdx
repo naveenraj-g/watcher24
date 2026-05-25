@@ -33,55 +33,29 @@ The top nav contains an **App Switcher** dropdown. Selecting an app sets a `watc
 
 ## How `application_id` Is Resolved on Ingest
 
-The gateway resolves `application_id` for every incoming event using this priority:
+The gateway resolves `application_id` from **one source only** — the `app_id` column on the `apikey` row, which is set when you link a key to an app in the console.
 
-```
-1. app_id column on the apikey row   (set when key is linked to an app in the console)
-2. appId from the SDK config         (fallback — only used when the key has no app linked)
-```
+Any `appId` value in the SDK config is **always ignored**.
 
 ### Key linked to an app
 
-<Callout type="note" title="The key always wins">
-When a key is linked to an app, the SDK `appId` config value is completely ignored. The gateway uses the key's linked app ID regardless of what the SDK sends.
-</Callout>
-
-When a key is linked to an app the `apikey.app_id` column is set to that app's UUID. Every event sent with that key is tagged with the linked app's ID automatically.
+When a key is linked to an app, the `apikey.app_id` column is set to that app's UUID. Every event sent with that key is tagged with the linked app's ID automatically.
 
 ```
 Key linked to: payments-api (50d1064f-...)
-SDK config:    appId: "anything"
-Stored as:     application_id = "50d1064f-..."   ← key wins
+SDK config:    appId: "anything"   ← ignored
+Stored as:     application_id = "50d1064f-..."
 ```
 
-**Recommended**: link the key to the app in the console and remove `appId` from the SDK config. The key carries the app identity — no manual config needed.
+### Key NOT linked to any app
 
-### Key NOT linked to any app (legacy / org-level key)
-
-The gateway falls back to whatever `appId` the SDK sends.
-
-**If the SDK passes the app's registered UUID** (copied from Settings → Apps):
-
-Events are stored with the correct `application_id` and the app switcher filter works. This is a valid transitional setup while migrating to scoped keys.
+`application_id` is stored as `""`. The SDK `appId` is ignored entirely — there is no fallback. Events will only appear under **All Apps** in the console.
 
 ```
 Key linked to: nothing
-SDK config:    appId: "50d1064f-..."   ← must match a real app UUID from the console
-Stored as:     application_id = "50d1064f-..."   ✅ filter works
-```
-
-**If the SDK passes a free-form string** (e.g. `"my-app"`, `"bookmarks-client"`):
-
-<Callout type="warning" title="Events will not appear in per-app views">
-A free-form string is stored in ClickHouse as `application_id` but has no matching row in the `applications` table. The app switcher filters by registered UUID — a free-form string will never match. Events only appear under **All Apps**.
-</Callout>
-
-```
-Key linked to: nothing
-SDK config:    appId: "bookmarks-client"   ← not a UUID, not in applications table
-Stored as:     application_id = "bookmarks-client"
-Console view:  ✅ shows in "All Apps"
-               ❌ never shows when a specific app is selected
+SDK config:    appId: "50d1064f-..."   ← ignored
+Stored as:     application_id = ""
+Console view:  shows in "All Apps" only
 ```
 
 ## Summary
@@ -89,10 +63,8 @@ Console view:  ✅ shows in "All Apps"
 | Key linked to app? | SDK `appId` | `application_id` stored | App filter works? |
 |--------------------|-------------|------------------------|-------------------|
 | ✅ Yes | anything | key's app UUID | ✅ Yes |
-| ❌ No | registered app UUID | that UUID | ✅ Yes |
-| ❌ No | free-form string | that string | ❌ No |
-| ❌ No | not set | `""` (empty) | ❌ No |
+| ❌ No | anything | `""` (empty) | ❌ No |
 
 <Callout type="tip" title="Bottom line">
-Always link your API key to an app in the console. It is the only way to guarantee correct filtering regardless of what the SDK sends.
+Link your API key to an app in the console. That is the only way events are tagged with an `application_id` and appear in per-app filtered views.
 </Callout>
