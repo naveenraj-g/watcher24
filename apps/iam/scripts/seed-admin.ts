@@ -186,6 +186,21 @@ const ADMIN_MENU: {
       },
     ],
   },
+  {
+    label: "BILLING",
+    slug: "billing",
+    icon: "credit-card",
+    isVisible: true,
+    children: [
+      {
+        label: "Subscriptions",
+        slug: "subscriptions",
+        href: "/admin/billing",
+        icon: "credit-card",
+        isVisible: true,
+      },
+    ],
+  },
 ];
 
 // ------------------------------------------------------------------ //
