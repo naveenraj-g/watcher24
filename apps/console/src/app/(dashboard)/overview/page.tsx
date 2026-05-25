@@ -30,11 +30,7 @@ export default async function OverviewPage() {
 
       <div className="grid gap-6 lg:grid-cols-2">
         <EventsChart data={buckets} />
-        {/*
-          apiKey is null until the user creates one in Settings.
-          The LiveFeed gracefully handles the null state.
-        */}
-        <LiveFeed apiKey={null} />
+        <LiveFeed />
       </div>
     </div>
   );

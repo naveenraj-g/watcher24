@@ -150,6 +150,26 @@ export async function queryMonthlyUsage(orgId: string): Promise<number> {
   return Number(rows[0]?.total ?? 0);
 }
 
+// queryTraceSpans returns all spans belonging to a single trace, ordered by
+// timestamp ASC so the tree can compute relative time offsets from the root.
+export async function queryTraceSpans(
+  orgId: string,
+  traceId: string,
+): Promise<EventRow[]> {
+  const result = await clickhouse.query({
+    query: `
+      SELECT *
+      FROM watcher.events
+      WHERE organization_id = {orgId: String}
+        AND trace_id = {traceId: String}
+      ORDER BY timestamp ASC
+    `,
+    query_params: { orgId, traceId },
+    format: "JSONEachRow",
+  });
+  return result.json<EventRow>();
+}
+
 // queryEvents is a generic paginated query used by all explorer pages.
 export async function queryEvents(opts: {
   orgId: string;

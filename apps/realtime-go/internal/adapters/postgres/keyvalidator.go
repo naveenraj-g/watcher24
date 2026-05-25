@@ -7,7 +7,7 @@ package postgres
 import (
 	"context"
 	"crypto/sha256"
-	"encoding/hex"
+	"encoding/base64"
 	"fmt"
 	"time"
 
@@ -44,23 +44,31 @@ func (a *KeyValidatorAdapter) Close() {
 	a.pool.Close()
 }
 
-// Validate hashes the raw key with SHA-256 and queries the IAM `apikey` table.
-// Returns typed errors for not-found, disabled, and expired states so callers
-// can return appropriate HTTP responses without leaking internal details.
+// Validate hashes the raw key with SHA-256 (base64url, no padding — matches
+// better-auth storage) and queries the IAM `apikey` table.
+// LEFT JOINs userContext to resolve the active org ID for user-scoped keys,
+// mirroring the same logic in the gateway so WebSocket connections are
+// scoped to the correct organization.
 func (a *KeyValidatorAdapter) Validate(ctx context.Context, rawKey string) (*ports.APIKey, error) {
 	hash := hashKey(rawKey)
 
 	var (
-		id             string
-		referenceID    string
-		enabled        bool
-		expiresAt      *time.Time
+		id          string
+		referenceID string
+		activeOrgID *string
+		enabled     bool
+		expiresAt   *time.Time
 	)
 
 	err := a.pool.QueryRow(ctx,
-		`SELECT id, "referenceId", enabled, "expiresAt" FROM apikey WHERE key = $1`,
+		`SELECT a.id, a."referenceId", a.enabled, a."expiresAt",
+		        uc."activeOrganizationId"
+		 FROM apikey a
+		 LEFT JOIN "userContext" uc ON uc."userId" = a."referenceId"
+		 WHERE a.key = $1
+		 LIMIT 1`,
 		hash,
-	).Scan(&id, &referenceID, &enabled, &expiresAt)
+	).Scan(&id, &referenceID, &enabled, &expiresAt, &activeOrgID)
 
 	if err != nil {
 		if err == pgx.ErrNoRows {
@@ -76,14 +84,22 @@ func (a *KeyValidatorAdapter) Validate(ctx context.Context, rawKey string) (*por
 		return nil, ports.ErrAPIKeyExpired
 	}
 
+	// Prefer the user's active org over referenceId directly (which may be
+	// a user ID for keys created outside an org context).
+	orgID := referenceID
+	if activeOrgID != nil && *activeOrgID != "" {
+		orgID = *activeOrgID
+	}
+
 	return &ports.APIKey{
 		ID:             id,
-		OrganizationID: referenceID,
+		OrganizationID: orgID,
 	}, nil
 }
 
-// hashKey produces the SHA-256 hex digest that better-auth stores in IAM.
+// hashKey returns the SHA-256 base64url digest (no padding) of the raw API key.
+// better-auth stores keys hashed this way — must match exactly.
 func hashKey(raw string) string {
 	sum := sha256.Sum256([]byte(raw))
-	return hex.EncodeToString(sum[:])
+	return base64.RawURLEncoding.EncodeToString(sum[:])
 }

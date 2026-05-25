@@ -22,8 +22,13 @@ export default async function TasksPage() {
 
   return (
     <main style={{ maxWidth: 640, margin: "40px auto", padding: "0 16px" }}>
-      <h1>🔖 Bookmarks</h1>
-      <p style={{ color: "#6b7280", fontSize: 13, marginTop: -8 }}>
+      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
+        <h1 style={{ margin: "0 0 4px" }}>🔖 Bookmarks</h1>
+        <a href="/test" style={{ fontSize: 12, color: "#2563eb", textDecoration: "none" }}>
+          SDK Test Lab →
+        </a>
+      </div>
+      <p style={{ color: "#6b7280", fontSize: 13, marginTop: 4, marginBottom: 16 }}>
         Watcher24 Next.js example — user: <code>{DEMO_USER_ID}</code>
       </p>
 

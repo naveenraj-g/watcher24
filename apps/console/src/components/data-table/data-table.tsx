@@ -20,6 +20,8 @@ interface DataTableProps<TData> extends React.ComponentProps<"div"> {
   actionBar?: React.ReactNode;
   /** Pass false to hide the pagination row. */
   withPagination?: boolean;
+  /** Optional row click handler. When provided, rows get cursor-pointer + group class. */
+  onRowClick?: (row: TData) => void;
 }
 
 export function DataTable<TData>({
@@ -28,6 +30,7 @@ export function DataTable<TData>({
   children,
   className,
   withPagination = true,
+  onRowClick,
   ...props
 }: DataTableProps<TData>) {
   return (
@@ -60,6 +63,8 @@ export function DataTable<TData>({
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
+                  onClick={() => onRowClick?.(row.original)}
+                  className={cn(onRowClick && "cursor-pointer group")}
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>
