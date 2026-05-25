@@ -123,6 +123,28 @@
   }
 }
 
+/* Dual-theme syntax highlighting — rehype-pretty-code sets --shiki-light/dark
+   CSS variables on each token; we toggle which set is visible via .dark class */
+code[data-theme*=" "],
+code[data-theme*=" "] span {
+  color: var(--shiki-light);
+  background-color: var(--shiki-light-bg);
+}
+
+pre[data-theme*=" "] {
+  background-color: var(--shiki-light-bg);
+}
+
+.dark code[data-theme*=" "],
+.dark code[data-theme*=" "] span {
+  color: var(--shiki-dark);
+  background-color: var(--shiki-dark-bg);
+}
+
+.dark pre[data-theme*=" "] {
+  background-color: var(--shiki-dark-bg);
+}
+
 /* Thin scrollbars across the dashboard */
 * {
   scrollbar-width: thin;
