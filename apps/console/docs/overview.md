@@ -38,6 +38,19 @@ the shared IAM PostgreSQL database.
 | Client state  | TanStack Query v5                   |
 | Package mgr   | pnpm                                |
 
+## Multi-App Support
+
+Each organisation can register multiple **Apps** (a web frontend, a backend API, a mobile
+app, etc.). The dashboard lets users:
+
+- Create and manage apps at **Settings → Apps**
+- Link API keys to a specific app so the gateway tags events automatically
+- Switch between apps in the top nav — all explorer pages (Audit, Logs, Traces, Metrics)
+  filter their ClickHouse queries to the selected app's `application_id`
+- View all apps' events at once by selecting **All Apps**
+
+The active app is stored in a `watcher_app` HTTP-only cookie so it persists across navigation.
+
 ## Running locally
 
 ```bash
