@@ -179,6 +179,80 @@ the gateway falls back to the header value. This keeps existing integrations wor
 
 ---
 
+## How `appId` Resolution Works (Priority Order)
+
+The gateway resolves the final `application_id` for every event using this priority:
+
+```
+1. app_id column on the apikey row  (set when key is linked to an app in the console)
+2. appId from SDK config / x-app-id header  (fallback for unlinked keys only)
+```
+
+### Case 1 — Key IS linked to an app
+
+> **The key always wins. The SDK `appId` is completely ignored.**
+
+When you link a key to an app via **Settings → Apps → Link key**, the `apikey.app_id`
+column is set to that app's UUID. Every request using that key has its `application_id`
+forced to the linked app's ID — regardless of what `appId` value the SDK passes.
+
+```
+Key linked to: payments-api (50d1064f-...)
+SDK config:    appId: "some-other-id"
+Stored as:     application_id = "50d1064f-..."  ← key wins, SDK value ignored
+```
+
+> ✅ **Recommended setup**: link the key to the app in the console, then remove `appId`
+> from your SDK config entirely. The key carries the app identity.
+
+### Case 2 — Key is NOT linked to any app (legacy / org-level key)
+
+> **The SDK `appId` is used as-is. If it doesn't match a registered app UUID, filtering breaks.**
+
+If `apikey.app_id` is NULL, the gateway falls back to whatever `appId` the SDK sends.
+This value is stored directly in ClickHouse as `application_id`. Two sub-cases:
+
+**2a. SDK passes a registered app UUID** (e.g. copied from Settings → Apps)
+
+Events are stored with the correct `application_id` and the app switcher filter works.
+This is a valid transitional setup while migrating to scoped keys.
+
+```
+Key linked to: nothing (NULL)
+SDK config:    appId: "50d1064f-..."  ← must be a real app UUID from the console
+Stored as:     application_id = "50d1064f-..."  ✅ filter works
+```
+
+**2b. SDK passes a free-form string** (e.g. `"bookmarks-client"`, `"my-app"`)
+
+> ⚠️ **Warning: events will not appear in any per-app filtered view.**
+
+The string is stored as `application_id` in ClickHouse but it does not correspond to any
+row in the `applications` table. The console's app switcher filters by registered UUID —
+a free-form string will never match. Events will only appear under **All Apps**.
+
+```
+Key linked to: nothing (NULL)
+SDK config:    appId: "bookmarks-client"   ← not a UUID, not in applications table
+Stored as:     application_id = "bookmarks-client"
+Console view:  ✅ shows in "All Apps"
+               ❌ never shows when a specific app is selected
+```
+
+### Summary table
+
+| Key linked? | SDK `appId` | `application_id` stored | App filter works? |
+|-------------|-------------|------------------------|-------------------|
+| ✅ Yes | anything | key's app UUID | ✅ Yes |
+| ❌ No | registered UUID | that UUID | ✅ Yes |
+| ❌ No | free-form string | that string | ❌ No |
+| ❌ No | not set | `""` (empty) | ❌ No |
+
+> 💡 **Bottom line**: always link your API key to an app in the console. It is the only
+> way to guarantee correct filtering regardless of what the SDK sends.
+
+---
+
 ## Migration Strategy (zero downtime)
 
 1. **Add `apps` table** and `app_id` column to `apikey` — both nullable, no breaking change.
