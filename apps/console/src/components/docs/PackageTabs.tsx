@@ -41,9 +41,9 @@ export function PackageTabs({ pkg, python = false }: Props) {
   const tabs = python ? pyTabs : jsTabs;
 
   return (
-    <div className="relative my-6 overflow-hidden rounded-lg border bg-[#0d1117]">
+    <div className="relative my-6 overflow-hidden rounded-lg border border-border bg-muted/50 dark:bg-zinc-950">
       {/* Tabs row */}
-      <div className="flex border-b border-white/10">
+      <div className="flex border-b border-border">
         {(tabs as string[]).map((tab) => (
           <button
             key={tab}
@@ -54,8 +54,8 @@ export function PackageTabs({ pkg, python = false }: Props) {
             }
             className={`px-4 py-2 text-xs font-mono transition-colors ${
               tab === activeTab
-                ? "border-b-2 border-primary bg-white/5 text-white"
-                : "text-zinc-500 hover:text-zinc-300"
+                ? "border-b-2 border-primary text-foreground"
+                : "text-muted-foreground hover:text-foreground"
             }`}
           >
             {tab}
@@ -68,8 +68,8 @@ export function PackageTabs({ pkg, python = false }: Props) {
         <CopyButton text={command} />
         <pre className="overflow-x-auto p-4 text-sm leading-relaxed">
           <code>
-            <span className="select-none text-zinc-500">$ </span>
-            <span className="text-white">{command}</span>
+            <span className="select-none text-muted-foreground">$ </span>
+            <span className="text-foreground">{command}</span>
           </code>
         </pre>
       </div>
