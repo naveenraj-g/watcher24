@@ -5,8 +5,12 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { type ColumnDef } from "@tanstack/react-table";
-import { DataTable } from "@/components/data-table/DataTable";
+import {
+  type ColumnDef,
+  getCoreRowModel,
+  useReactTable,
+} from "@tanstack/react-table";
+import { DataTable } from "@/components/data-table/data-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -133,6 +137,12 @@ export function EventsExplorer({
     placeholderData: (prev) => prev,
   });
 
+  const table = useReactTable({
+    data: data ?? [],
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+  });
+
   return (
     <div className="space-y-4">
       {/* Filters */}
@@ -179,12 +189,7 @@ export function EventsExplorer({
       </div>
 
       {/* Table */}
-      <DataTable
-        columns={columns}
-        data={data ?? []}
-        isLoading={isFetching && !data}
-        emptyMessage={`No ${eventType} events found`}
-      />
+      <DataTable table={table} withPagination={false} />
 
       {/* Pagination */}
       <div className="flex items-center justify-between text-sm">

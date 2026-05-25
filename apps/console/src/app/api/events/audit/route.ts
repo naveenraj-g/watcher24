@@ -2,20 +2,17 @@
 // Accepts: orgId, limit, offset, search, severity query params.
 // The orgId param is validated against the session's active org to prevent
 // cross-tenant data leakage.
-import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth-server";
+import { getServerSession } from "@/lib/auth-server";
 import { queryEvents } from "@/lib/clickhouse";
 
 export async function GET(req: NextRequest) {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await getServerSession();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const sessionOrgId =
-    (session.session as { activeOrganizationId?: string })
-      .activeOrganizationId ?? "";
+  const sessionOrgId = session.session.activeOrganizationId ?? "";
 
   const sp = req.nextUrl.searchParams;
 

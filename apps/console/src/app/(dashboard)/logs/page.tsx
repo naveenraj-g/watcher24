@@ -1,6 +1,5 @@
 // Logs explorer page — shows structured application logs.
-import { headers } from "next/headers";
-import { auth } from "@/lib/auth-server";
+import { getServerSession } from "@/lib/auth-server";
 import { EventsExplorer } from "@/components/explorer/EventsExplorer";
 
 export const dynamic = "force-dynamic";
@@ -10,10 +9,8 @@ export default async function LogsPage({
 }: {
   searchParams: Promise<Record<string, string>>;
 }) {
-  const session = await auth.api.getSession({ headers: await headers() });
-  const orgId =
-    (session?.session as { activeOrganizationId?: string })
-      ?.activeOrganizationId ?? "";
+  const session = await getServerSession();
+  const orgId = session?.session.activeOrganizationId ?? "";
 
   const sp = await searchParams;
 
