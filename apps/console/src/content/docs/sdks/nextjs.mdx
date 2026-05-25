@@ -9,9 +9,7 @@ This guide covers the recommended patterns for using the Watcher JS SDK in a Nex
 
 ## Installation
 
-```bash
-pnpm add @watcher24/js-sdk
-```
+<PackageTabs pkg="@watcher/nextjs" />
 
 ## Create a singleton client
 
@@ -128,8 +126,11 @@ The browser SDK uses `NEXT_PUBLIC_WATCHER_API_KEY`. Create a separate, write-onl
 
 ## Environment variables
 
-```bash
-# .env.local
-WATCHER_API_KEY=wt_server_...          # server-only
-NEXT_PUBLIC_WATCHER_API_KEY=wt_pub_... # browser-safe
+```bash title=".env.local"
+# Server-only — never exposed to the browser
+W24_API_KEY=wtch_server_...
+
+# Browser-safe — create a separate write-only key
+NEXT_PUBLIC_W24_API_KEY=wtch_pub_...
+NEXT_PUBLIC_W24_GATEWAY_URL=https://ingest.watcher24.io
 ```

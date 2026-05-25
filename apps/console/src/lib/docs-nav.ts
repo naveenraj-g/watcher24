@@ -48,4 +48,11 @@ export const docsNav: NavSection[] = [
       { title: "Changelog", href: "/docs/changelog" },
     ],
   },
+  {
+    title: "AI Resources",
+    items: [
+      { title: "Skills", href: "/docs/ai/skills" },
+      { title: "LLMs.txt", href: "/docs/ai/llms" },
+    ],
+  },
 ];

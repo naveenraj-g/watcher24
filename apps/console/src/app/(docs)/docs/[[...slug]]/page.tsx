@@ -12,6 +12,7 @@ import Link from "next/link";
 import { getDoc, extractHeadings, getAllDocSlugs, getAdjacentDocs } from "@/lib/docs";
 import { mdxComponents } from "@/components/docs/mdx-components";
 import { TableOfContents } from "@/components/docs/TableOfContents";
+import { DocActions } from "@/components/docs/DocActions";
 
 interface Props {
   params: Promise<{ slug?: string[] }>;
@@ -73,6 +74,11 @@ export default async function DocPage({ params }: Props) {
     <>
       {/* Main content */}
       <main className="min-w-0 flex-1 py-10">
+        {/* Per-page action bar: Copy MD + Open in AI */}
+        <div className="mb-6 flex justify-end">
+          <DocActions rawMarkdown={doc.content} title={doc.frontmatter.title} />
+        </div>
+
         <article className="prose prose-neutral dark:prose-invert max-w-none">
           {content}
         </article>
