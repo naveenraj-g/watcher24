@@ -1,0 +1,50 @@
+---
+title: Data Retention
+description: How long Watcher keeps your events and how to configure retention per plan.
+---
+
+# Data Retention
+
+Watcher stores events in ClickHouse with automatic TTL (time-to-live) expiry. Older events are purged on a rolling basis to keep storage costs predictable.
+
+## Retention by plan
+
+| Plan | Retention |
+|---|---|
+| Free | 7 days |
+| Pro | 90 days |
+| Enterprise | 1 year (custom on request) |
+
+Events older than the retention window are automatically deleted from ClickHouse. There is no manual deletion required.
+
+## How TTL works
+
+ClickHouse's native `TTL` clause runs a background merge job that removes rows older than `now() - retention_period`. This happens automatically — you don't need to schedule any cleanup jobs.
+
+The TTL is applied per-organisation based on the organisation's active plan. When you upgrade from Free to Pro, the TTL on your existing events is extended automatically.
+
+## Querying near the retention boundary
+
+The console and API never return events outside your retention window, so you don't need to worry about stale data appearing in queries.
+
+If you need to query data near the boundary (e.g. "events from exactly 90 days ago"), use an explicit `from` timestamp in your API query rather than relying on the default 7-day window.
+
+## Audit log retention
+
+Audit events (`event_type = "audit"`) use a longer TTL regardless of plan:
+
+| Plan | Audit log retention |
+|---|---|
+| Free | 30 days |
+| Pro | 1 year |
+| Enterprise | Indefinite (or custom) |
+
+This is intentional — audit logs are often needed for compliance and should outlive your operational log retention.
+
+## Exporting before expiry
+
+To preserve data beyond your plan's retention window, use the **Export** feature in the console (or the `/api/events/export` endpoint) to download a CSV or Parquet snapshot before the TTL fires.
+
+<Callout type="tip">
+Pro tip: set up a scheduled export for long-term compliance archiving to S3 or GCS before the retention window expires.
+</Callout>

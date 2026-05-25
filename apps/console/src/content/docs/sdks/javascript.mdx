@@ -1,0 +1,120 @@
+---
+title: JavaScript / Node.js SDK
+description: Reference for the @watcher24/js-sdk package.
+---
+
+# JavaScript / Node.js SDK
+
+The `@watcher24/js-sdk` package works in Node.js (v18+) and modern browser environments.
+
+## Installation
+
+```bash
+npm install @watcher24/js-sdk
+# or
+pnpm add @watcher24/js-sdk
+# or
+yarn add @watcher24/js-sdk
+```
+
+## Initialisation
+
+```typescript
+import { Watcher } from "@watcher24/js-sdk";
+
+const watcher = new Watcher({
+  apiKey: process.env.WATCHER_API_KEY!,
+  appId: "my-service",           // identifies this application
+  environment: "production",     // "development" | "staging" | "production"
+  baseUrl: "https://ingest.example.com", // optional: self-hosted gateway URL
+});
+```
+
+| Option | Type | Required | Description |
+|---|---|---|---|
+| `apiKey` | `string` | Yes | Your organisation API key (starts with `wt_`) |
+| `appId` | `string` | Yes | Identifies which application sent the event |
+| `environment` | `string` | No | Defaults to `"production"` |
+| `baseUrl` | `string` | No | Override the ingest endpoint |
+
+## Logging
+
+```typescript
+// Simple log
+await watcher.log({ message: "Order created", payload: { orderId: "ord_1" } });
+
+// With severity
+await watcher.log({
+  message: "Payment failed",
+  severity: "error",
+  payload: { orderId: "ord_1", reason: "insufficient_funds" },
+});
+```
+
+### Severity levels
+
+| Severity | When to use |
+|---|---|
+| `debug` | Fine-grained diagnostic info (filtered in production by default) |
+| `info` | Normal operational events |
+| `warning` | Unexpected but recoverable situations |
+| `error` | Errors that need attention |
+| `critical` | System-level failures, alerts fire immediately |
+
+## Traces
+
+```typescript
+const span = watcher.startSpan("checkout");
+
+try {
+  await processPayment(orderId);
+  span.end({ status: "ok" });
+} catch (err) {
+  span.end({ status: "error", error: String(err) });
+}
+```
+
+## Metrics
+
+```typescript
+await watcher.metric({
+  name: "checkout.latency_ms",
+  value: 142,
+  unit: "ms",
+  tags: { region: "eu-west-1" },
+});
+```
+
+## Audit events
+
+```typescript
+await watcher.audit({
+  action: "user.deleted",
+  actor: { id: session.userId, email: session.email },
+  target: { type: "user", id: deletedUserId },
+  payload: { reason: "gdpr_request" },
+});
+```
+
+## Flush and shutdown
+
+The SDK batches events and flushes them automatically. Call `flush()` before process exit to ensure all buffered events are sent:
+
+```typescript
+process.on("SIGTERM", async () => {
+  await watcher.flush();
+  process.exit(0);
+});
+```
+
+## Error handling
+
+All methods return a `Promise`. Errors during ingestion are logged to `console.error` by default — they never throw so they don't interrupt your application.
+
+```typescript
+const watcher = new Watcher({
+  apiKey: process.env.WATCHER_API_KEY!,
+  appId: "my-service",
+  onError: (err) => myLogger.error("watcher error", err),
+});
+```

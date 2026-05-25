@@ -1,0 +1,119 @@
+---
+title: Event Ingestion API
+description: HTTP API reference for sending events directly to the Watcher gateway.
+---
+
+# Event Ingestion API
+
+The gateway exposes an HTTP API for ingesting events. Most users interact with it via an SDK, but you can POST directly if you need a language not yet covered.
+
+## Base URL
+
+```
+https://ingest.your-domain.com
+```
+
+For self-hosted setups, the default gateway port is `8080`.
+
+## Authentication
+
+All requests must include your API key in the `Authorization` header:
+
+```
+Authorization: Bearer wt_your_api_key_here
+```
+
+API keys are scoped to an organisation. They are hashed at rest — if you lose one, generate a new key in **Settings → API Keys**.
+
+## Ingest a single event
+
+```
+POST /v1/events
+Content-Type: application/json
+Authorization: Bearer wt_...
+```
+
+### Request body
+
+```json
+{
+  "app_id": "my-service",
+  "environment": "production",
+  "event_type": "log",
+  "severity": "info",
+  "message": "User signed up",
+  "payload": {
+    "userId": "usr_abc123",
+    "plan": "free"
+  },
+  "user_id": "usr_abc123",
+  "session_id": "ses_xyz",
+  "trace_id": "trace_1234",
+  "span_id": "span_5678",
+  "timestamp": "2025-05-24T10:00:00Z"
+}
+```
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `app_id` | string | Yes | Identifies the application |
+| `environment` | string | No | `"development"`, `"staging"`, `"production"` |
+| `event_type` | string | Yes | `"log"`, `"trace"`, `"metric"`, `"audit"` |
+| `severity` | string | No | `"debug"`, `"info"`, `"warning"`, `"error"`, `"critical"` |
+| `message` | string | Yes | Human-readable event description |
+| `payload` | object | No | Arbitrary JSON data attached to the event |
+| `user_id` | string | No | End-user identifier for user-scoped queries |
+| `session_id` | string | No | Browser or server session ID |
+| `trace_id` | string | No | OpenTelemetry-compatible trace ID |
+| `span_id` | string | No | OpenTelemetry-compatible span ID |
+| `timestamp` | ISO 8601 | No | Defaults to server time if omitted |
+
+### Response
+
+```json
+{ "ok": true, "id": "evt_01j..." }
+```
+
+## Ingest a batch
+
+Send up to 1,000 events in a single request to reduce HTTP overhead:
+
+```
+POST /v1/events/batch
+Content-Type: application/json
+Authorization: Bearer wt_...
+```
+
+```json
+{
+  "events": [
+    { "event_type": "log", "message": "Event 1", "app_id": "svc" },
+    { "event_type": "log", "message": "Event 2", "app_id": "svc" }
+  ]
+}
+```
+
+### Response
+
+```json
+{ "ok": true, "count": 2 }
+```
+
+## Error responses
+
+All errors return JSON with `error` and `code` fields:
+
+```json
+{ "error": "API key is invalid or has been revoked", "code": "INVALID_API_KEY" }
+```
+
+| HTTP status | Code | Meaning |
+|---|---|---|
+| `401` | `INVALID_API_KEY` | Missing or invalid `Authorization` header |
+| `403` | `ORG_SUSPENDED` | Organisation has been suspended |
+| `422` | `VALIDATION_ERROR` | Request body failed validation |
+| `429` | `PLAN_LIMIT` | Monthly event limit reached for your plan |
+
+<Callout type="note">
+When you receive a `429`, no events are dropped by the gateway — they are rejected at the edge. Upgrade your plan or wait for the next calendar month to resume ingestion.
+</Callout>

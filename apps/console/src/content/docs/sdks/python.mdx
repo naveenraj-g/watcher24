@@ -1,0 +1,103 @@
+---
+title: Python SDK
+description: Reference for the watcher24-sdk Python package.
+---
+
+# Python SDK
+
+The `watcher24-sdk` package supports Python 3.9+ and works in synchronous and async applications.
+
+## Installation
+
+```bash
+pip install watcher24-sdk
+# or with uv
+uv add watcher24-sdk
+```
+
+## Initialisation
+
+```python
+from watcher24 import Watcher
+
+watcher = Watcher(
+    api_key=os.environ["WATCHER_API_KEY"],
+    app_id="my-service",
+    environment="production",   # optional, defaults to "production"
+)
+```
+
+## Logging
+
+```python
+# Simple info log
+watcher.log("User signed up", payload={"user_id": "usr_abc"})
+
+# With severity
+watcher.log(
+    "Payment failed",
+    severity="error",
+    payload={"order_id": "ord_1", "reason": "card_declined"},
+)
+```
+
+## Async usage
+
+```python
+import asyncio
+from watcher24 import AsyncWatcher
+
+watcher = AsyncWatcher(api_key=os.environ["WATCHER_API_KEY"], app_id="api")
+
+async def handle_request():
+    await watcher.log("Request received", payload={"path": "/checkout"})
+```
+
+## FastAPI middleware
+
+```python
+from fastapi import FastAPI, Request
+from watcher24.middleware.fastapi import WatcherMiddleware
+
+app = FastAPI()
+app.add_middleware(WatcherMiddleware, api_key=os.environ["WATCHER_API_KEY"], app_id="api")
+```
+
+The middleware automatically logs every request: path, method, status code, latency, and user ID (if the request has an `X-User-Id` header).
+
+## Django middleware
+
+```python
+# settings.py
+MIDDLEWARE = [
+    "watcher24.middleware.django.WatcherMiddleware",
+    # ... existing middleware
+]
+
+WATCHER = {
+    "API_KEY": env("WATCHER_API_KEY"),
+    "APP_ID": "django-app",
+}
+```
+
+## Audit events
+
+```python
+watcher.audit(
+    action="document.deleted",
+    actor={"id": user.id, "email": user.email},
+    target={"type": "document", "id": doc_id},
+    payload={"reason": "user_request"},
+)
+```
+
+## Flush
+
+```python
+import atexit
+atexit.register(watcher.flush)
+```
+
+<Callout type="note">
+In serverless environments (AWS Lambda, Cloud Run), call `watcher.flush()` explicitly at the end of your handler — the process may be frozen before the background flush thread runs.
+</Callout>
