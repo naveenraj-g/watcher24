@@ -28,8 +28,12 @@ export function Header({ user, orgId }: HeaderProps) {
   const router = useRouter();
 
   async function handleSignOut() {
-    await authClient.signOut();
-    router.push("/login");
+    // Clear OAuth access_token cookie (PKCE flow) and better-auth session (proxy flow).
+    await Promise.all([
+      fetch("/api/auth/signout", { method: "POST" }),
+      authClient.signOut(),
+    ]);
+    router.push("/");
   }
 
   const initials = (user.name ?? user.email)

@@ -1,8 +1,8 @@
-// middleware.ts — lightweight Edge middleware that guards all dashboard routes.
+// proxy.ts — lightweight Edge middleware that guards all dashboard routes.
 //
-// Only checks for the presence of the session cookie; the full DB-backed
-// session validation happens in the DashboardLayout server component.
-// This keeps the middleware on the Edge runtime (no DB connection needed).
+// Checks for either a better-auth session cookie (direct IAM proxy flow)
+// or the OAuth access_token cookie (PKCE flow). Full DB-backed validation
+// happens in DashboardLayout; this only needs to confirm a token exists.
 import { NextRequest, NextResponse } from "next/server";
 
 const PUBLIC_PATHS = [
@@ -12,6 +12,7 @@ const PUBLIC_PATHS = [
   "/forgot-password",
   "/reset-password",
   "/verify-email",
+  "/callback",
   "/docs",
   "/api/auth",
   "/api/docs",
@@ -26,12 +27,14 @@ export function proxy(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // better-auth sets this cookie on successful login.
   const sessionCookie =
     req.cookies.get("better-auth.session_token") ??
     req.cookies.get("__Secure-better-auth.session_token");
 
-  if (!sessionCookie) {
+  // Also accept the OAuth access_token cookie set by /api/auth/token after PKCE flow.
+  const oauthCookie = req.cookies.get("console.access_token");
+
+  if (!sessionCookie && !oauthCookie) {
     const loginUrl = new URL("/login", req.url);
     loginUrl.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(loginUrl);
