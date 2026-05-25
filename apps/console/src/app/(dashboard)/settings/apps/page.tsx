@@ -5,7 +5,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Plus, AppWindow, Trash2, ChevronRight } from "lucide-react";
+import { Plus, AppWindow, Trash2, ChevronRight, Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -26,6 +26,28 @@ function slugify(name: string): string {
     .trim()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
+}
+
+function CopyIdButton({ id }: { id: string }) {
+  const [copied, setCopied] = useState(false);
+  function copy(e: React.MouseEvent) {
+    e.preventDefault();
+    navigator.clipboard.writeText(id);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  }
+  return (
+    <button
+      onClick={copy}
+      title="Copy App ID"
+      className="inline-flex items-center gap-1 font-mono text-xs text-muted-foreground hover:text-foreground transition-colors"
+    >
+      <span className="truncate max-w-[160px]">{id}</span>
+      {copied
+        ? <Check className="h-3 w-3 text-green-500 shrink-0" />
+        : <Copy className="h-3 w-3 shrink-0 opacity-0 group-hover:opacity-60" />}
+    </button>
+  );
 }
 
 export default function AppsPage() {
@@ -149,11 +171,12 @@ export default function AppsPage() {
                     href={`/settings/apps/${app.id}`}
                     className="flex items-center gap-3 flex-1 min-w-0"
                   >
-                    <div className="min-w-0">
+                    <div className="min-w-0 space-y-0.5">
                       <p className="text-sm font-medium truncate">{app.name}</p>
                       <p className="text-xs text-muted-foreground font-mono">
                         {app.slug} · Created {formatDate(app.created_at)}
                       </p>
+                      <CopyIdButton id={app.id} />
                     </div>
                     <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
                   </Link>
