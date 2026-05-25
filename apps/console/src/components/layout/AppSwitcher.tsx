@@ -26,7 +26,7 @@ export function AppSwitcher({ activeAppId }: AppSwitcherProps) {
   function fetchApps() {
     fetch("/api/apps")
       .then((r) => r.json())
-      .then(setApps)
+      .then((data) => { if (Array.isArray(data)) setApps(data); })
       .catch(() => {});
   }
 
