@@ -16,7 +16,12 @@ export default async function DashboardLayout({
     redirect("/login");
   }
 
-  const orgId = session.session.activeOrganizationId ?? "";
+  // New users without an active organisation go through the onboarding wizard.
+  if (!session.session.activeOrganizationId) {
+    redirect("/onboarding/create-org");
+  }
+
+  const orgId = session.session.activeOrganizationId;
 
   return (
     <div className="flex h-svh overflow-hidden bg-background">

@@ -1,6 +1,5 @@
-// Root page — immediately redirects to /overview.
-// The middleware handles auth; if the user is not signed in they'll be
-// redirected to /login before reaching this page.
+// Root page — redirects to /overview (dashboard layout then handles org check).
+// Unauthenticated users are caught by middleware and sent to /login first.
 import { redirect } from "next/navigation";
 
 export default function RootPage() {
