@@ -5,6 +5,7 @@ package transport
 
 import (
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 
@@ -37,7 +38,15 @@ func NewServer(
 	})
 
 	// Global middleware — applied to every request
-	app.Use(recover.New())  // recover from panics, return 500 instead of crashing
+	app.Use(recover.New()) // recover from panics, return 500 instead of crashing
+	// CORS must run before auth so browser preflight OPTIONS requests are
+	// answered without needing an API key (preflights never carry credentials).
+	app.Use(cors.New(cors.Config{
+		AllowOriginsFunc: func(origin string) bool { return true }, // any origin allowed; key-based auth is the gate
+		AllowMethods:     "GET,POST,OPTIONS",
+		AllowHeaders:     "Authorization,Content-Type,X-API-Key,X-App-Id,X-Environment,X-SDK-Version",
+		MaxAge:           86400, // cache preflight for 24 h
+	}))
 	app.Use(logger.New(logger.Config{
 		Format: "[${time}] ${status} ${method} ${path} ${latency}\n",
 	}))

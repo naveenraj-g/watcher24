@@ -10,7 +10,7 @@ package postgres
 import (
 	"context"
 	"crypto/sha256"
-	"encoding/hex"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"time"
@@ -112,9 +112,10 @@ func (a *KeyValidatorAdapter) Validate(ctx context.Context, rawKey string) (*dom
 	}, nil
 }
 
-// hashKey returns the SHA-256 hex digest of the raw API key.
-// This must match exactly how better-auth hashes keys on creation.
+// hashKey returns the SHA-256 base64url digest of the raw API key (no padding).
+// better-auth's @better-auth/api-key plugin stores keys hashed with
+// SHA-256 encoded as base64url (not hex) — this must match exactly.
 func hashKey(rawKey string) string {
 	sum := sha256.Sum256([]byte(rawKey))
-	return hex.EncodeToString(sum[:])
+	return base64.RawURLEncoding.EncodeToString(sum[:])
 }
