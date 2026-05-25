@@ -8,6 +8,7 @@
 import { createAuthClient } from "better-auth/react";
 import { organizationClient } from "better-auth/client/plugins";
 import { apiKeyClient } from "@better-auth/api-key/client";
+import { stripeClient } from "@better-auth/stripe/client";
 
 export const authClient = createAuthClient({
   baseURL: process.env.NEXT_PUBLIC_APP_URL!,
@@ -17,5 +18,6 @@ export const authClient = createAuthClient({
       teams: { enabled: true },
     }),
     apiKeyClient(),
+    stripeClient({ subscription: true }),
   ],
 });

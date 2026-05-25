@@ -133,6 +133,23 @@ export async function queryHourlyBuckets(
   return result.json<HourlyBucket>();
 }
 
+// queryMonthlyUsage returns the total event count for the current calendar month.
+export async function queryMonthlyUsage(orgId: string): Promise<number> {
+  const result = await clickhouse.query({
+    query: `
+      SELECT count() AS total
+      FROM watcher.events
+      WHERE organization_id = {orgId: String}
+        AND toStartOfMonth(timestamp) = toStartOfMonth(now())
+    `,
+    query_params: { orgId },
+    format: "JSONEachRow",
+  });
+
+  const rows = await result.json<{ total: number }>();
+  return Number(rows[0]?.total ?? 0);
+}
+
 // queryEvents is a generic paginated query used by all explorer pages.
 export async function queryEvents(opts: {
   orgId: string;
