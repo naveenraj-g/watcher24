@@ -105,7 +105,8 @@ Console view:  ✅ shows in "All Apps"
 ## Database
 
 Apps are stored in the `applications` table in the IAM PostgreSQL database. The console
-connects directly via `IAM_DATABASE_URL` (see `configuration.md`).
+manages them by calling the IAM service's HTTP API (`/api/apps/*`) — it does not
+connect to the database directly. IAM uses Prisma to query the table.
 
 ```sql
 -- applications table (created by migration 001_init.sql)

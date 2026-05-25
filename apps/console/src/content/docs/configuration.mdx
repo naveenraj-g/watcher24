@@ -42,7 +42,7 @@ All services are configured via environment variables. Never hardcode secrets �
 | Variable | Required | Default | Description |
 |---|---|---|---|
 | `PORT` | No | `8080` | HTTP server port |
-| `IAM_DATABASE_URL` | Yes | — | Read-only PostgreSQL connection to the IAM DB (for API key validation) |
+| `IAM_URL` | Yes | `http://localhost:5000` | Internal URL of the IAM service — for server-side app/key management calls |
 | `REDIS_URL` | Yes | `redis://localhost:6379` | Redis for event streaming |
 | `REDIS_STREAM` | No | `events` | Redis stream name |
 | `CLICKHOUSE_URL` | No | — | If set, gateway writes directly to ClickHouse (bypass pipeline) |

@@ -15,17 +15,15 @@ Copy `.env.example` to `.env` and fill in values before running.
 | `CLICKHOUSE_PASSWORD`     | Yes      | `watcher_secret`              | ClickHouse password                                                     |
 | `CLICKHOUSE_DB`           | Yes      | `watcher`                     | ClickHouse database name                                                |
 | `NEXT_PUBLIC_REALTIME_URL`| No       | `ws://localhost:8081`         | WebSocket URL of the realtime-go service — used by the live feed        |
-| `IAM_DATABASE_URL`        | Yes      | `postgresql://...@localhost:5433/iam` | Direct PostgreSQL connection to the IAM database — used for app and API key management |
+| `IAM_URL`                 | Yes      | `http://localhost:5000`       | Internal URL of the IAM service — used for server-side app/key management API calls |
 
-## IAM database connection
+## IAM service connection
 
-`IAM_DATABASE_URL` must point to the same PostgreSQL database the IAM service uses.
-The console reads the `applications` table and the `app_id` column on `apikey` directly
-via `pg` — it does not go through the IAM HTTP API for these queries.
+App and API key management (the `applications` table and `apikey.app_id`) is handled
+by calling the IAM service's HTTP API (`/api/apps/*`). The console forwards the
+browser session cookie so IAM handles authentication and org resolution.
 
-The console never writes to better-auth managed tables (`user`, `session`, `apikey`
-columns other than `app_id`). It only writes to the `applications` table and the
-`app_id` column.
+The console never connects to the IAM database directly.
 
 ## Critical: shared auth secret
 

@@ -314,8 +314,8 @@ model OauthConsent {
 }
 
 model Apikey {
-  id                  String    @id
-  configId            String    @default("default")
+  id                  String       @id
+  configId            String       @default("default")
   name                String?
   start               String?
   referenceId         String
@@ -324,11 +324,11 @@ model Apikey {
   refillInterval      Int?
   refillAmount        Int?
   lastRefillAt        DateTime?
-  enabled             Boolean?  @default(true)
-  rateLimitEnabled    Boolean?  @default(true)
-  rateLimitTimeWindow Int?      @default(86400000)
-  rateLimitMax        Int?      @default(10)
-  requestCount        Int?      @default(0)
+  enabled             Boolean?     @default(true)
+  rateLimitEnabled    Boolean?     @default(true)
+  rateLimitTimeWindow Int?         @default(86400000)
+  rateLimitMax        Int?         @default(10)
+  requestCount        Int?         @default(0)
   remaining           Int?
   lastRequest         DateTime?
   expiresAt           DateTime?
@@ -336,11 +336,29 @@ model Apikey {
   updatedAt           DateTime
   permissions         String?
   metadata            String?
+  appId               String?      @map("app_id")
+  application         Application? @relation(fields: [appId], references: [id], onDelete: SetNull)
 
   @@index([configId])
   @@index([referenceId])
   @@index([key])
+  @@index([appId])
   @@map("apikey")
+}
+
+// Application — a watcher24 instrumented target registered by an org.
+// API keys are scoped to an application via the appId FK above.
+model Application {
+  id             String   @id @default(dbgenerated("gen_random_uuid()::text"))
+  organizationId String   @map("organization_id")
+  name           String
+  slug           String
+  createdAt      DateTime @default(now()) @map("created_at")
+  apikeys        Apikey[]
+
+  @@unique([organizationId, slug])
+  @@index([organizationId], map: "idx_applications_org_id")
+  @@map("applications")
 }
 
 model AgentHost {

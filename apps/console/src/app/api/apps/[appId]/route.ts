@@ -1,19 +1,14 @@
-// DELETE /api/apps/[appId] — delete an application owned by the authenticated org.
-// Existing API keys linked to this app have their app_id set to NULL (ON DELETE SET NULL).
+// DELETE /api/apps/[appId] — proxy to IAM DELETE /api/apps/[appId]
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "@/lib/auth-server";
 import { deleteApp } from "@/lib/apps";
 
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ appId: string }> },
 ) {
-  const session = await getServerSession();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const orgId = session.session.activeOrganizationId ?? "";
+  const cookie = req.headers.get("cookie") ?? "";
   const { appId } = await params;
 
-  await deleteApp(appId, orgId);
+  await deleteApp(appId, cookie);
   return new NextResponse(null, { status: 204 });
 }
