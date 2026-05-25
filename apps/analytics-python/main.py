@@ -63,31 +63,29 @@ def main() -> None:
         logger.critical("analytics-worker: cannot connect to Redis: %s", exc)
         raise SystemExit(1)
 
-    # ClickHouse — used to store processed events
-    ch_client = clickhouse_connect.get_client(
+    # ClickHouse — verify connectivity once at startup before spawning workers.
+    # Each worker gets its own client instance (clickhouse_connect is not thread-safe).
+    ch_probe = clickhouse_connect.get_client(
         host=cfg.clickhouse_host,
         port=cfg.clickhouse_port,
         database=cfg.clickhouse_db,
         username=cfg.clickhouse_user,
         password=cfg.clickhouse_password,
     )
-    if not ch_client.ping():
+    if not ch_probe.ping():
         logger.critical("analytics-worker: cannot connect to ClickHouse")
         raise SystemExit(1)
+    ch_probe.close()
     logger.info("analytics-worker: connected to ClickHouse at %s:%d", cfg.clickhouse_host, cfg.clickhouse_port)
-
-    # ── 3. Create adapters ────────────────────────────────────────────────────
-    # ClickHouse repository — single instance shared across all workers
-    repository = ClickHouseEventRepository(ch_client)
-
-    # ── 4. Create use case — shared across all workers ────────────────────────
-    use_case = ProcessBatchUseCase(repository)
 
     # Unique consumer name per process to avoid conflicts when scaling horizontally.
     # Uses hostname + PID so two containers don't collide in the same group.
     consumer_name = f"{socket.gethostname()}-{os.getpid()}"
 
-    # ── 5. Create and start workers ───────────────────────────────────────────
+    # ── 3-5. Create and start workers ────────────────────────────────────────
+    # clickhouse_connect does not support concurrent queries on one client
+    # instance — each worker thread must own its own client, repository, and
+    # use case to avoid "concurrent queries within the same session" errors.
     threads: list[threading.Thread] = []
 
     for worker_name in cfg.workers:
@@ -95,6 +93,17 @@ def main() -> None:
         if not worker_class:
             logger.warning("analytics-worker: unknown worker type %r — skipping", worker_name)
             continue
+
+        # Dedicated ClickHouse client per worker thread.
+        worker_ch_client = clickhouse_connect.get_client(
+            host=cfg.clickhouse_host,
+            port=cfg.clickhouse_port,
+            database=cfg.clickhouse_db,
+            username=cfg.clickhouse_user,
+            password=cfg.clickhouse_password,
+        )
+        repository = ClickHouseEventRepository(worker_ch_client)
+        use_case = ProcessBatchUseCase(repository)
 
         # Each worker gets its own Redis consumer bound to its stream topic
         consumer = RedisStreamConsumer(
