@@ -17,8 +17,13 @@ export async function GET() {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const orgId = session.session.activeOrganizationId ?? "";
-  const apps = await listApps(orgId);
-  return NextResponse.json(apps);
+  try {
+    const apps = await listApps(orgId);
+    return NextResponse.json(apps);
+  } catch (err) {
+    console.error("[/api/apps GET]", err);
+    return NextResponse.json({ error: "Failed to load apps" }, { status: 500 });
+  }
 }
 
 export async function POST(req: NextRequest) {
