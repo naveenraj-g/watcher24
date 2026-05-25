@@ -1,4 +1,6 @@
-# Multi-App Support — Implementation Plan
+# Multi-App Support
+
+> **Status: Implemented** (migration 002, gateway v+AppID, console Settings → Apps)
 
 ## Background
 
@@ -190,12 +192,12 @@ the gateway falls back to the header value. This keeps existing integrations wor
 ## Implementation Order
 
 ```
-1. DB migration       — apps table + app_id column on apikey
-2. Gateway            — resolve app_id from key, fall back to header
-3. Console API routes — CRUD for apps and app-scoped keys
-4. Console UI         — /settings/apps pages + app selector in nav
-5. Explorer filtering — pass app_id to ClickHouse queries when selected
-6. SDK               — make appId optional, update docs
+✅ 1. DB migration       — applications table + app_id column on apikey
+✅ 2. Gateway            — resolve app_id from key, fall back to header
+✅ 3. Console API routes — CRUD for apps and app-scoped keys
+✅ 4. Console UI         — /settings/apps pages + app selector in nav
+✅ 5. Explorer filtering — pass app_id to ClickHouse queries when selected
+✅ 6. SDK               — appId now optional, watcher.ts uses spread pattern
 ```
 
 ---
