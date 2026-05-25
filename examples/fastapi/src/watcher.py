@@ -2,12 +2,18 @@
 # Import `client` from this module in routers and background tasks.
 # One instance per process — the background flusher thread runs for the
 # lifetime of the app and is stopped cleanly in the lifespan shutdown hook.
+#
+# app_id is optional when using an app-scoped key created via Settings → Apps
+# in the console. The gateway resolves it automatically from the key.
+# Only set W24_APP_ID if using a legacy org-level key with no app linked.
 import os
 from watcher_sdk import Client
 
+_app_id = os.environ.get("W24_APP_ID") or None
+
 client = Client(
     api_key=os.environ.get("W24_API_KEY", ""),
-    app_id=os.environ.get("W24_APP_ID", "notes-api"),
+    app_id=_app_id,
     gateway_url=os.environ.get("W24_GATEWAY_URL", "http://localhost:8080"),
     environment=os.environ.get("W24_ENVIRONMENT", "development"),
 )

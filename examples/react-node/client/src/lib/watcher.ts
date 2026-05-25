@@ -5,7 +5,8 @@ import { createBrowserClient } from "@watcher/browser";
 
 export const watcherClient = createBrowserClient({
   apiKey: import.meta.env.VITE_W24_API_KEY ?? "",
-  appId: import.meta.env.VITE_W24_APP_ID ?? "task-tracker-client",
+  // appId is optional when using an app-scoped key — the gateway resolves it.
+  ...(import.meta.env.VITE_W24_APP_ID ? { appId: import.meta.env.VITE_W24_APP_ID } : {}),
   gatewayUrl: import.meta.env.VITE_W24_GATEWAY_URL ?? "http://localhost:8080",
   environment: import.meta.env.MODE,
 });

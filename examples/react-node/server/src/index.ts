@@ -10,7 +10,8 @@ import { createNodeClient } from "@watcher/node";
 // sends them every 500ms — no need to await individual calls.
 const watcher = createNodeClient({
   apiKey: process.env.W24_API_KEY ?? "",
-  appId: process.env.W24_APP_ID ?? "task-tracker-server",
+  // appId is optional when using an app-scoped key — the gateway resolves it.
+  ...(process.env.W24_APP_ID ? { appId: process.env.W24_APP_ID } : {}),
   gatewayUrl: process.env.W24_GATEWAY_URL ?? "http://localhost:8080",
   environment: process.env.NODE_ENV ?? "development",
 });
@@ -191,6 +192,43 @@ app.delete("/api/tasks/:id", (req: Request, res: Response) => {
   });
 
   res.json({ ok: true });
+});
+
+// ── SDK Test Lab endpoints ───────────────────────────────────────────────────
+// These routes are used by the /test page in the React client.
+// Each one fires a real event through the Watcher24 SDK and returns metadata
+// so the client can show it in the event log.
+
+app.post("/api/test/audit", (req: Request, res: Response) => {
+  const { eventType } = req.body as { eventType: string };
+  const type = eventType || "test.server.user.action";
+  watcher.audit(type, { userId: "test-user", payload: { source: "test-lab" } });
+  res.json({ ok: true, type: "audit", eventType: type, sentAt: new Date().toISOString() });
+});
+
+app.post("/api/test/log", (req: Request, res: Response) => {
+  const { severity, eventType } = req.body as { severity: string; eventType: string };
+  const sev = severity || "info";
+  const type = eventType || `test.server.log.${sev}`;
+  watcher.log(sev, type, { payload: { source: "test-lab" } });
+  res.json({ ok: true, type: "log", eventType: type, severity: sev, sentAt: new Date().toISOString() });
+});
+
+app.post("/api/test/trace", (req: Request, res: Response) => {
+  const { eventType } = req.body as { eventType: string };
+  const type = eventType || "test.server.db.query";
+  const traceId = crypto.randomUUID();
+  const spanId = crypto.randomUUID();
+  watcher.trace(type, { traceId, spanId, payload: { source: "test-lab" } });
+  res.json({ ok: true, type: "trace", eventType: type, sentAt: new Date().toISOString() });
+});
+
+app.post("/api/test/metric", (req: Request, res: Response) => {
+  const { eventType, value } = req.body as { eventType: string; value: number };
+  const type = eventType || "test.server.request.count";
+  const val = Number(value) || 1;
+  watcher.metric(type, { payload: { value: val, source: "test-lab" } });
+  res.json({ ok: true, type: "metric", eventType: type, sentAt: new Date().toISOString() });
 });
 
 // ── Global error handler ──────────────────────────────────────────────────────
