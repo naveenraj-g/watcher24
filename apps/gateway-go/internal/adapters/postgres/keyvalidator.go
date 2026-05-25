@@ -61,41 +61,47 @@ func (a *KeyValidatorAdapter) Close() {
 
 // Validate implements ports.KeyValidator.
 //
-// It hashes the raw key with SHA-256, queries the IAM apikey table, and
-// returns the resolved APIKey domain object. The hashing matches exactly
-// how better-auth stores keys — so only keys issued by the IAM will match.
+// It hashes the raw key, looks up the apikey row, and resolves the
+// organization ID. better-auth stores either a user ID or an org ID in
+// referenceId depending on how the key was created:
+//   - Org-scoped key (created inside an org context): referenceId = org ID → used directly.
+//   - User-scoped key (created without an org context): referenceId = user ID →
+//     resolved to the user's activeOrganizationId via a LEFT JOIN on userContext.
+//
+// This ensures events are always tagged with an org ID so the console
+// dashboard queries match, even when the API key was created without an
+// explicit org context.
 func (a *KeyValidatorAdapter) Validate(ctx context.Context, rawKey string) (*domain.APIKey, error) {
-	// Hash the raw key to match the stored value in the IAM database.
-	// better-auth uses SHA-256 (hex-encoded) for all API key storage.
 	hash := hashKey(rawKey)
 
-	// iamAPIKey mirrors the relevant columns from better-auth's apikey table.
-	// We only select what the gateway needs — not the full row.
 	var (
-		id          string
-		referenceID string
-		enabled     bool
-		expiresAt   *time.Time
-		permissions *string
+		id           string
+		referenceID  string
+		activeOrgID  *string // non-nil when referenceId is a user with an active org
+		enabled      bool
+		expiresAt    *time.Time
+		permissions  *string
 	)
 
+	// LEFT JOIN userContext so that when referenceId is a user ID we can
+	// resolve their activeOrganizationId in one round-trip.
 	err := a.pool.QueryRow(ctx,
-		`SELECT id, "referenceId", enabled, "expiresAt", permissions
-		 FROM apikey
-		 WHERE key = $1
+		`SELECT a.id, a."referenceId", a.enabled, a."expiresAt", a.permissions,
+		        uc."activeOrganizationId"
+		 FROM apikey a
+		 LEFT JOIN "userContext" uc ON uc."userId" = a."referenceId"
+		 WHERE a.key = $1
 		 LIMIT 1`,
 		hash,
-	).Scan(&id, &referenceID, &enabled, &expiresAt, &permissions)
+	).Scan(&id, &referenceID, &enabled, &expiresAt, &permissions, &activeOrgID)
 
 	if err != nil {
-		// pgx.ErrNoRows means no key matched the hash — invalid key.
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, domain.ErrAPIKeyNotFound
 		}
 		return nil, fmt.Errorf("postgres key validator: query: %w", err)
 	}
 
-	// The key exists — now check its state.
 	if !enabled {
 		return nil, domain.ErrAPIKeyDisabled
 	}
@@ -104,9 +110,17 @@ func (a *KeyValidatorAdapter) Validate(ctx context.Context, rawKey string) (*dom
 		return nil, domain.ErrAPIKeyExpired
 	}
 
+	// Resolve the organization ID: prefer the user's active org when the key
+	// is user-scoped (LEFT JOIN matched), otherwise use referenceId directly
+	// (already an org ID for org-scoped keys, or user ID as last resort).
+	orgID := referenceID
+	if activeOrgID != nil && *activeOrgID != "" {
+		orgID = *activeOrgID
+	}
+
 	return &domain.APIKey{
 		ID:             id,
-		OrganizationID: referenceID,
+		OrganizationID: orgID,
 		Permissions:    permissions,
 		ExpiresAt:      expiresAt,
 	}, nil
