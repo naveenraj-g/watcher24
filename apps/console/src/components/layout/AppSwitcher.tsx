@@ -23,12 +23,15 @@ export function AppSwitcher({ activeAppId }: AppSwitcherProps) {
   const [apps, setApps] = useState<App[]>([]);
   const [isPending, startTransition] = useTransition();
 
-  useEffect(() => {
+  function fetchApps() {
     fetch("/api/apps")
       .then((r) => r.json())
       .then(setApps)
       .catch(() => {});
-  }, []);
+  }
+
+  // Initial load so the active app label renders correctly on mount.
+  useEffect(() => { fetchApps(); }, []);
 
   const activeApp = apps.find((a) => a.id === activeAppId) ?? null;
   const label = activeApp?.name ?? "All Apps";
@@ -40,7 +43,7 @@ export function AppSwitcher({ activeAppId }: AppSwitcherProps) {
   }
 
   return (
-    <DropdownMenu>
+    <DropdownMenu onOpenChange={(open) => { if (open) fetchApps(); }}>
       <DropdownMenuTrigger asChild>
         <Button
           variant="outline"
