@@ -28,9 +28,14 @@ export async function POST(request: Request) {
   const cookieStore = await cookies();
   const accessToken = cookieStore.get("console.access_token")?.value;
 
+  // better-auth CSRF protection requires an Origin header on all POST requests.
+  // Server-to-server fetches don't send one automatically, so we add it explicitly.
+  const origin = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3001";
+
   const authHeaders: HeadersInit = {
     "Content-Type": "application/json",
     Accept: "application/json",
+    Origin: origin,
     ...(cookieHeader ? { cookie: cookieHeader } : {}),
     ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
   };
