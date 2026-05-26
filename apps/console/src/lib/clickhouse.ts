@@ -40,9 +40,9 @@ export interface EventRow {
   severity: string;
   message: string;
   // source distinguishes where the event came from:
-  // "browser" = public token via @watcher/browser or @watcher/react
-  // "server"  = secret key via @watcher/node, Python, or Go SDK
-  // ""        = legacy events ingested before source tagging was added
+  // "client" = public token (wpub_) — browser, mobile, or desktop SDK
+  // "server" = secret key (wt_) — @watcher/node, Python, or Go SDK
+  // ""       = legacy events ingested before source tagging was added
   source: string;
   timestamp: string;
   trace_id: string;

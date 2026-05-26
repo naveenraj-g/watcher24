@@ -28,8 +28,10 @@ const (
 	// LocalMinuteRateLimit holds the per-minute event cap for public tokens.
 	// Not set (zero value) for secret keys — handlers must check LocalKeyType first.
 	LocalMinuteRateLimit    = "minute_rate_limit"
-	// LocalEventSource is "browser" for public tokens and "server" for secret keys.
-	// Set here once so every handler gets consistent tagging without extra logic.
+	// LocalEventSource is "client" for public tokens and "server" for secret keys.
+	// "client" covers any client-side context (browser, mobile, desktop) — public
+	// tokens are not browser-only. Set here once so every handler gets consistent
+	// tagging without extra logic.
 	LocalEventSource        = "event_source"
 )
 
@@ -72,7 +74,7 @@ func Auth(validator ports.KeyValidator) fiber.Handler {
 		// Determine event source from key type — set once here, used by all handlers.
 		eventSource := "server"
 		if apiKey.KeyType == domain.KeyTypePublic {
-			eventSource = "browser"
+			eventSource = "client"
 		}
 
 		// Store resolved context in locals so handlers can read it without

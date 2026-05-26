@@ -31,6 +31,7 @@ _COLUMNS = [
     "event_type",
     "severity",
     "message",
+    "source",
     "timestamp",
     "trace_id",
     "span_id",

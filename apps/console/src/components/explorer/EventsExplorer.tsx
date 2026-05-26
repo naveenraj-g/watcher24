@@ -35,7 +35,7 @@ const SEVERITY_OPTIONS = [
   "critical",
 ] as const;
 
-const SOURCE_OPTIONS = ["all", "browser", "server"] as const;
+const SOURCE_OPTIONS = ["all", "client", "server"] as const;
 
 interface EventsExplorerProps {
   orgId: string;
@@ -120,7 +120,7 @@ export function EventsExplorer({
           <Badge
             variant="outline"
             className={`text-[10px] uppercase ${
-              s === "browser"
+              s === "client"
                 ? "border-blue-300 text-blue-700 bg-blue-50 dark:border-blue-700 dark:text-blue-300 dark:bg-blue-950/30"
                 : "border-slate-300 text-slate-600 bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:bg-slate-900/30"
             }`}

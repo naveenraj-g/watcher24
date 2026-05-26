@@ -67,6 +67,12 @@ class Event(BaseModel):
     # Content
     message: str
 
+    # Source — set by the gateway based on the API key type, never by the SDK.
+    # "client" = public token (wpub_) used from browser, mobile, or desktop.
+    # "server" = secret key (wt_) used from a server-side SDK.
+    # ""       = legacy events ingested before source tagging was introduced.
+    source: str = ""
+
     # Timestamps — both always present, ingested_at is server-set by gateway
     timestamp: datetime
     ingested_at: datetime
@@ -126,6 +132,7 @@ class Event(BaseModel):
             self.event_type.value,
             self.severity.value,
             self.message,
+            self.source,
             self.timestamp,
             self.trace_id,
             self.span_id,
