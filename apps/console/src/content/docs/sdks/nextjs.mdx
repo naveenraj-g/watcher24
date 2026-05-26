@@ -1,39 +1,41 @@
 ---
 title: Next.js Integration
-description: How to use Watcher in a Next.js application — server components, route handlers, and client-side logging.
+description: How to use Watcher24 in a Next.js application — server components, route handlers, middleware, and client components.
 ---
 
 # Next.js Integration
 
-This guide covers the recommended patterns for using the Watcher JS SDK in a Next.js application with the App Router.
+The `@watcher/nextjs` package provides tailored exports for each Next.js context so you never accidentally import a Node.js transport into a Client Component or vice versa.
+
+| Import path | Where to use |
+|-------------|-------------|
+| `@watcher/nextjs/server` | Server Components, Route Handlers, Server Actions |
+| `@watcher/nextjs/client` | Client Components (`"use client"`) |
+| `@watcher/nextjs` | `middleware.ts` only |
 
 ## Installation
 
 <PackageTabs pkg="@watcher/nextjs" />
 
-## Create a singleton client
+## Create a server singleton
 
-Create a shared client in `src/lib/watcher.ts` so you don't re-initialise on every request:
+Create a shared client in `src/lib/watcher.ts`. The `globalThis` guard prevents re-initialisation on every hot-reload in development.
 
 ```typescript
 // src/lib/watcher.ts
-import { Watcher } from "@watcher24/js-sdk";
+import { createNextServerClient } from "@watcher/nextjs/server";
 
-const globalForWatcher = globalThis as unknown as {
-  watcher: Watcher | undefined;
-};
+declare global {
+  var __watcher: ReturnType<typeof createNextServerClient> | undefined;
+}
 
 export const watcher =
-  globalForWatcher.watcher ??
-  new Watcher({
-    apiKey: process.env.WATCHER_API_KEY!,
-    appId: "console",
+  globalThis.__watcher ??
+  (globalThis.__watcher = createNextServerClient({
+    apiKey: process.env.W24_API_KEY!,
+    appId: process.env.W24_APP_ID ?? "console",
     environment: process.env.NODE_ENV === "production" ? "production" : "development",
-  });
-
-if (process.env.NODE_ENV !== "production") {
-  globalForWatcher.watcher = watcher;
-}
+  }));
 ```
 
 ## Server Components
@@ -43,7 +45,7 @@ if (process.env.NODE_ENV !== "production") {
 import { watcher } from "@/lib/watcher";
 
 export default async function DashboardPage() {
-  await watcher.log("dashboard.viewed", { severity: "info" });
+  watcher.log("info", "dashboard.viewed");
   return <div>Dashboard</div>;
 }
 ```
@@ -58,79 +60,87 @@ import { watcher } from "@/lib/watcher";
 export async function POST(req: NextRequest) {
   const body = await req.json();
 
-  await watcher.audit({
-    action: "order.created",
-    actor: { id: body.userId },
-    target: { type: "order", id: body.orderId },
+  watcher.audit("order.created", {
+    userId: body.userId,
+    payload: { orderId: body.orderId },
   });
 
   return NextResponse.json({ ok: true });
 }
 ```
 
-## Middleware (request logging)
+## Middleware (request tracing)
 
 ```typescript
 // middleware.ts
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
-import { watcher } from "@/lib/watcher";
+import { watcherMiddleware } from "@watcher/nextjs";
 
-export async function middleware(request: NextRequest) {
-  const start = Date.now();
-  const response = NextResponse.next();
-
-  await watcher.log("http.request", {
-    severity: "info",
-    payload: {
-      method: request.method,
-      path: request.nextUrl.pathname,
-      latency_ms: Date.now() - start,
-      status: response.status,
-    },
-  });
-
-  return response;
-}
-
-export const config = {
-  matcher: ["/api/:path*"],
-};
-```
-
-## Client-side logging
-
-For browser-side events (user actions, UI errors), use the client directly:
-
-```typescript
-"use client";
-import { Watcher } from "@watcher24/js-sdk/browser";
-
-const watcher = new Watcher({
-  apiKey: process.env.NEXT_PUBLIC_WATCHER_API_KEY!,
-  appId: "console-browser",
+export const middleware = watcherMiddleware({
+  apiKey: process.env.W24_API_KEY!,
+  appId: process.env.W24_APP_ID ?? "console",
 });
 
-export function TrackClick({ label }: { label: string }) {
+export const config = { matcher: ["/api/:path*"] };
+```
+
+The middleware automatically emits a `trace` event for every matched request with `method`, `path`, `status`, and `durationMs`.
+
+## Client Components
+
+For browser-side events, use the context provider and hooks from `@watcher/nextjs/client`.
+
+```tsx
+// app/providers.tsx
+"use client";
+import { createBrowserClient } from "@watcher/browser";
+import { WatcherProvider } from "@watcher/nextjs/client";
+
+const browserClient = createBrowserClient({
+  apiKey: process.env.NEXT_PUBLIC_W24_API_KEY!,
+  appId: process.env.NEXT_PUBLIC_W24_APP_ID ?? "console-browser",
+});
+
+export function Providers({ children }: { children: React.ReactNode }) {
+  return <WatcherProvider client={browserClient}>{children}</WatcherProvider>;
+}
+```
+
+```tsx
+// Any Client Component
+"use client";
+import { useAudit, useMetric } from "@watcher/nextjs/client";
+
+export function UpgradeButton({ userId }: { userId: string }) {
+  const audit  = useAudit();
+  const metric = useMetric();
+
   return (
-    <button onClick={() => watcher.log(`click.${label}`, { severity: "debug" })}>
-      {label}
+    <button onClick={() => {
+      audit("upgrade.clicked", { userId, payload: { location: "hero" } });
+      metric("upgrade.clicks", { payload: { value: 1 } });
+    }}>
+      Upgrade
     </button>
   );
 }
 ```
 
-<Callout type="warning" title="Public API key">
-The browser SDK uses `NEXT_PUBLIC_WATCHER_API_KEY`. Create a separate, write-only API key for browser use — revoke it easily if it leaks.
+<Callout type="warning" title="Use a separate write-only key for the browser">
+The browser SDK uses `NEXT_PUBLIC_W24_API_KEY`. Create a separate write-only API key for browser use — if it leaks it can only write events, not read data.
 </Callout>
 
 ## Environment variables
 
-```bash title=".env.local"
-# Server-only — never exposed to the browser
-W24_API_KEY=wtch_server_...
+```bash
+# .env.local
 
-# Browser-safe — create a separate write-only key
-NEXT_PUBLIC_W24_API_KEY=wtch_pub_...
+# Server-only — never exposed to the browser
+W24_API_KEY=wt_...
+W24_APP_ID=my-app
+W24_GATEWAY_URL=https://ingest.watcher24.io   # optional
+
+# Browser-safe — write-only key
+NEXT_PUBLIC_W24_API_KEY=wt_pub_...
+NEXT_PUBLIC_W24_APP_ID=my-app-browser
 NEXT_PUBLIC_W24_GATEWAY_URL=https://ingest.watcher24.io
 ```

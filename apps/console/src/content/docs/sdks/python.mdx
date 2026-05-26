@@ -1,99 +1,205 @@
 ---
 title: Python SDK
-description: Reference for the watcher24-sdk Python package.
+description: Reference for the watcher-sdk Python package.
 ---
 
 # Python SDK
 
-The `watcher24-sdk` package supports Python 3.9+ and works in synchronous and async applications.
+The `watcher-sdk` package supports Python 3.9+ and works in synchronous and async applications.
 
 ## Installation
 
-<PackageTabs pkg="watcher-sdk" python />
+```bash
+pip install watcher-sdk
+# or
+uv add watcher-sdk
+```
 
 ## Initialisation
 
-```python
-from watcher24 import Watcher
+Create a module-level singleton client. Never instantiate inside a request handler.
 
-watcher = Watcher(
-    api_key=os.environ["WATCHER_API_KEY"],
-    app_id="my-service",
-    environment="production",   # optional, defaults to "production"
+```python
+# watcher.py
+import os
+from watcher_sdk import Client
+
+client = Client(
+    api_key=os.environ["W24_API_KEY"],
+    app_id=os.environ.get("W24_APP_ID", "my-service"),
+    environment=os.environ.get("W24_ENVIRONMENT", "production"),
+    gateway_url=os.environ.get("W24_GATEWAY_URL", "http://localhost:8080"),
 )
 ```
 
-## Logging
-
-```python
-# Simple info log
-watcher.log("User signed up", payload={"user_id": "usr_abc"})
-
-# With severity
-watcher.log(
-    "Payment failed",
-    severity="error",
-    payload={"order_id": "ord_1", "reason": "card_declined"},
-)
-```
-
-## Async usage
-
-```python
-import asyncio
-from watcher24 import AsyncWatcher
-
-watcher = AsyncWatcher(api_key=os.environ["WATCHER_API_KEY"], app_id="api")
-
-async def handle_request():
-    await watcher.log("Request received", payload={"path": "/checkout"})
-```
-
-## FastAPI middleware
-
-```python
-from fastapi import FastAPI, Request
-from watcher24.middleware.fastapi import WatcherMiddleware
-
-app = FastAPI()
-app.add_middleware(WatcherMiddleware, api_key=os.environ["WATCHER_API_KEY"], app_id="api")
-```
-
-The middleware automatically logs every request: path, method, status code, latency, and user ID (if the request has an `X-User-Id` header).
-
-## Django middleware
-
-```python
-# settings.py
-MIDDLEWARE = [
-    "watcher24.middleware.django.WatcherMiddleware",
-    # ... existing middleware
-]
-
-WATCHER = {
-    "API_KEY": env("WATCHER_API_KEY"),
-    "APP_ID": "django-app",
-}
-```
-
-## Audit events
-
-```python
-watcher.audit(
-    action="document.deleted",
-    actor={"id": user.id, "email": user.email},
-    target={"type": "document", "id": doc_id},
-    payload={"reason": "user_request"},
-)
-```
-
-## Flush
+Register a shutdown hook in your entry point:
 
 ```python
 import atexit
-atexit.register(watcher.flush)
+from watcher import client
+
+atexit.register(client.shutdown)
+```
+
+| Option | Type | Required | Description |
+|--------|------|----------|-------------|
+| `api_key` | `str` | Yes | Organisation API key (starts with `wt_`) |
+| `app_id` | `str` | Yes | Identifies which application sent the event |
+| `environment` | `str` | No | Defaults to `"production"` |
+| `gateway_url` | `str` | No | Override the ingest endpoint |
+| `flush_interval` | `float` | No | Flush interval in seconds (default `0.5`) |
+| `flush_at` | `int` | No | Flush when buffer reaches this size (default `100`) |
+
+## Audit events
+
+Record user actions and compliance events. Always include `user_id`.
+
+```python
+client.audit(
+    "user.login",
+    user_id=user_id,
+    payload={"email": email, "ip": request.client.host},
+)
+
+client.audit(
+    "document.deleted",
+    user_id=user_id,
+    payload={"doc_id": doc_id, "reason": "gdpr_request"},
+)
+```
+
+## Logs
+
+Application log events with a severity level.
+
+```python
+client.log("info", "server.started", payload={"port": 8000})
+client.log("error", "db.query.failed", payload={"error": str(exc)})
+client.log("warn", "rate_limit.approaching", payload={"used": 9_800, "limit": 10_000})
+```
+
+Severity levels: `"debug"` · `"info"` · `"warn"` · `"error"` · `"critical"`
+
+## Traces
+
+Distributed trace spans. Pass a shared `trace_id` to correlate spans across services.
+
+```python
+import time, uuid
+
+start = time.perf_counter()
+result = await db.query(sql)
+duration_ms = round((time.perf_counter() - start) * 1000, 2)
+
+client.trace(
+    "db.query",
+    trace_id=request_trace_id,
+    span_id=str(uuid.uuid4()),
+    payload={"query": "get_user", "duration_ms": duration_ms},
+)
+```
+
+## Metrics
+
+Numeric measurements. Always include `{"value": number}` in `payload`.
+
+```python
+client.metric("orders.total", payload={"value": 1_042})
+client.metric("response.latency_ms", payload={"value": 120})
+```
+
+## FastAPI — lifespan pattern (recommended)
+
+```python
+from contextlib import asynccontextmanager
+from fastapi import FastAPI
+from watcher import client
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    client.log("info", "server.started")
+    yield
+    client.shutdown()
+
+app = FastAPI(lifespan=lifespan)
+```
+
+## FastAPI — auto-trace middleware
+
+```python
+from watcher_sdk.integrations.fastapi import instrument
+from watcher import client
+
+instrument(app, client)
+# Every request now produces a trace event with method, path, status_code, duration_ms
+```
+
+## Method signatures
+
+```python
+# Audit — user actions, compliance trail
+client.audit(
+    message: str,
+    *,
+    user_id: str = "",
+    session_id: str = "",
+    trace_id: str = "",
+    span_id: str = "",
+    payload: dict | None = None,
+) -> None
+
+# Log — application events
+client.log(
+    severity: str,   # "debug" | "info" | "warn" | "error" | "critical"
+    message: str,
+    *,
+    trace_id: str = "",
+    span_id: str = "",
+    payload: dict | None = None,
+) -> None
+
+# Trace — distributed spans
+client.trace(
+    message: str,
+    *,
+    trace_id: str = "",
+    span_id: str = "",
+    parent_span_id: str = "",
+    payload: dict | None = None,
+) -> None
+
+# Metric — numeric measurements
+client.metric(
+    message: str,
+    *,
+    payload: dict | None = None,  # always include {"value": number}
+) -> None
+
+# Lifecycle
+client.flush() -> None    # blocks until all buffered events are sent
+client.shutdown() -> None # flush then stop the background thread
 ```
 
 <Callout type="note">
-In serverless environments (AWS Lambda, Cloud Run), call `watcher.flush()` explicitly at the end of your handler — the process may be frozen before the background flush thread runs.
+All options after `message` are keyword-only. Use `payload={"port": 3000}` — not a positional argument.
+</Callout>
+
+## Environment variables
+
+```bash
+W24_API_KEY=wt_...             # required
+W24_APP_ID=my-service          # required
+W24_GATEWAY_URL=http://localhost:8080  # optional
+W24_ENVIRONMENT=production     # optional
+```
+
+Load with python-dotenv:
+
+```python
+from dotenv import load_dotenv
+load_dotenv()  # call before importing watcher.py
+```
+
+<Callout type="note">
+In serverless environments (AWS Lambda, Cloud Run), call `client.flush()` explicitly at the end of your handler — the process may be frozen before the background flush thread runs.
 </Callout>

@@ -1,114 +1,227 @@
 ---
 title: JavaScript / Node.js SDK
-description: Reference for the @watcher24/js-sdk package.
+description: Reference for the @watcher/node, @watcher/browser, and @watcher/react packages.
 ---
 
 # JavaScript / Node.js SDK
 
-The `@watcher24/js-sdk` package works in Node.js (v18+) and modern browser environments.
+The Watcher24 JavaScript SDK is split into focused packages. Pick the one that matches your runtime.
+
+| Package | Where to use |
+|---------|-------------|
+| `@watcher/node` | Node.js servers, scripts, workers |
+| `@watcher/browser` | Browser bundles (vanilla JS / Vite) |
+| `@watcher/react` | React apps — provides a context provider and hooks |
+| `@watcher/nextjs` | Next.js — middleware, server, and client exports |
 
 ## Installation
 
-<PackageTabs pkg="@watcher/node" />
+```bash
+# Node.js server
+npm install @watcher/node
 
-## Initialisation
+# React SPA
+npm install @watcher/browser @watcher/react
+
+# Next.js
+npm install @watcher/nextjs
+```
+
+## Node.js
+
+### Initialisation
+
+Create a singleton client and register a shutdown hook to prevent event loss on process exit.
 
 ```typescript
-import { Watcher } from "@watcher24/js-sdk";
+// lib/watcher.ts
+import { createNodeClient } from "@watcher/node";
 
-const watcher = new Watcher({
-  apiKey: process.env.WATCHER_API_KEY!,
-  appId: "my-service",           // identifies this application
-  environment: "production",     // "development" | "staging" | "production"
-  baseUrl: "https://ingest.example.com", // optional: self-hosted gateway URL
+export const watcher = createNodeClient({
+  apiKey: process.env.W24_API_KEY!,
+  appId: process.env.W24_APP_ID ?? "my-service",
+  environment: process.env.NODE_ENV ?? "production",
+  gatewayUrl: process.env.W24_GATEWAY_URL, // optional
 });
+
+process.on("SIGTERM", () => watcher.shutdown());
+process.on("SIGINT",  () => watcher.shutdown());
 ```
 
 | Option | Type | Required | Description |
-|---|---|---|---|
-| `apiKey` | `string` | Yes | Your organisation API key (starts with `wt_`) |
+|--------|------|----------|-------------|
+| `apiKey` | `string` | Yes | Organisation API key (starts with `wt_`) |
 | `appId` | `string` | Yes | Identifies which application sent the event |
 | `environment` | `string` | No | Defaults to `"production"` |
-| `baseUrl` | `string` | No | Override the ingest endpoint |
+| `gatewayUrl` | `string` | No | Override the ingest endpoint |
+| `flushInterval` | `number` | No | Flush interval in ms (default `500`) |
+| `flushAt` | `number` | No | Flush when buffer reaches this size (default `100`) |
 
-## Logging
+### Audit events
+
+Record user actions and compliance events. Always include `userId`.
 
 ```typescript
-// Simple log
-await watcher.log({ message: "Order created", payload: { orderId: "ord_1" } });
+watcher.audit("user.login", {
+  userId: "usr_123",
+  payload: { email: "user@example.com", ip: "1.2.3.4" },
+});
 
-// With severity
-await watcher.log({
-  message: "Payment failed",
-  severity: "error",
-  payload: { orderId: "ord_1", reason: "insufficient_funds" },
+watcher.audit("document.deleted", {
+  userId: "usr_123",
+  payload: { docId: "doc_abc", reason: "gdpr_request" },
 });
 ```
 
-### Severity levels
+### Logs
 
-| Severity | When to use |
-|---|---|
-| `debug` | Fine-grained diagnostic info (filtered in production by default) |
-| `info` | Normal operational events |
-| `warning` | Unexpected but recoverable situations |
-| `error` | Errors that need attention |
-| `critical` | System-level failures, alerts fire immediately |
-
-## Traces
+Application log events with a severity level.
 
 ```typescript
-const span = watcher.startSpan("checkout");
+watcher.log("info", "server.started", { payload: { port: 3000 } });
+watcher.log("error", "db.query.failed", { payload: { error: err.message } });
+watcher.log("warn", "rate_limit.approaching", { payload: { used: 9_800, limit: 10_000 } });
+```
 
-try {
-  await processPayment(orderId);
-  span.end({ status: "ok" });
-} catch (err) {
-  span.end({ status: "error", error: String(err) });
+Severity levels: `"debug"` · `"info"` · `"warn"` · `"error"` · `"critical"`
+
+### Traces
+
+Distributed trace spans. Pass a shared `traceId` to correlate spans across services.
+
+```typescript
+const traceId = req.headers["x-trace-id"] as string ?? crypto.randomUUID();
+
+watcher.trace("http.request", {
+  traceId,
+  payload: { method: "POST", path: "/api/orders", status: 201, durationMs: 42 },
+});
+```
+
+### Metrics
+
+Numeric measurements. Put the value in `payload.value`.
+
+```typescript
+watcher.metric("orders.total", { payload: { value: 1_042 } });
+watcher.metric("response.latency_ms", { payload: { value: 120, p99: 340 } });
+```
+
+### Flush and shutdown
+
+```typescript
+await watcher.flush();    // send all buffered events immediately
+await watcher.shutdown(); // flush then stop the background flusher
+```
+
+## Browser
+
+Use `createBrowserClient` from `@watcher/browser`. The browser transport uses `fetch` and automatically registers a `sendBeacon` flush on `visibilitychange` to flush events when the page is hidden.
+
+```typescript
+import { createBrowserClient } from "@watcher/browser";
+
+const watcher = createBrowserClient({
+  apiKey: import.meta.env.VITE_W24_API_KEY!,
+  appId: "my-app",
+});
+
+watcher.audit("button.clicked", { userId, payload: { label: "upgrade" } });
+```
+
+<Callout type="warning" title="Use a write-only public key">
+Never expose your server API key in browser bundles. Create a separate write-only key for browser use and store it in a `VITE_W24_API_KEY` or `NEXT_PUBLIC_W24_API_KEY` env var.
+</Callout>
+
+## React
+
+Wrap your app with `WatcherProvider`, then use the typed hooks in any component.
+
+```tsx
+// main.tsx
+import { createBrowserClient } from "@watcher/browser";
+import { WatcherProvider } from "@watcher/react";
+
+const watcher = createBrowserClient({
+  apiKey: import.meta.env.VITE_W24_API_KEY!,
+  appId: "my-app",
+});
+
+<WatcherProvider client={watcher}>
+  <App />
+</WatcherProvider>
+```
+
+```tsx
+// Any component
+import { useAudit, useLog, useTrace, useMetric } from "@watcher/react";
+
+function CheckoutButton({ userId }: { userId: string }) {
+  const audit  = useAudit();
+  const metric = useMetric();
+
+  return (
+    <button onClick={() => {
+      audit("checkout.started", { userId });
+      metric("checkout.clicks", { payload: { value: 1 } });
+    }}>
+      Checkout
+    </button>
+  );
 }
 ```
 
-## Metrics
+## Method signatures
+
+All methods are on the `Client` instance returned by the factory functions.
 
 ```typescript
-await watcher.metric({
-  name: "checkout.latency_ms",
-  value: 142,
-  unit: "ms",
-  tags: { region: "eu-west-1" },
-});
+// Audit — user actions, compliance trail
+client.audit(message: string, options?: {
+  userId?: string;
+  sessionId?: string;
+  traceId?: string;
+  spanId?: string;
+  payload?: Record<string, unknown>;
+}): void
+
+// Log — application events
+client.log(severity: string, message: string, options?: {
+  traceId?: string;
+  spanId?: string;
+  payload?: Record<string, unknown>;
+}): void
+
+// Trace — distributed spans
+client.trace(message: string, options?: {
+  traceId?: string;
+  spanId?: string;
+  parentSpanId?: string;
+  payload?: Record<string, unknown>;
+}): void
+
+// Metric — numeric measurements
+client.metric(message: string, options?: {
+  payload?: Record<string, unknown>; // always include { value: number }
+}): void
+
+// Lifecycle
+client.flush(): Promise<void>
+client.shutdown(): Promise<void>
 ```
 
-## Audit events
+## Environment variables
 
-```typescript
-await watcher.audit({
-  action: "user.deleted",
-  actor: { id: session.userId, email: session.email },
-  target: { type: "user", id: deletedUserId },
-  payload: { reason: "gdpr_request" },
-});
-```
+```bash
+# Server-side (never expose to the browser)
+W24_API_KEY=wt_...
+W24_APP_ID=my-service
+W24_GATEWAY_URL=http://localhost:8080   # optional
+W24_ENVIRONMENT=production              # optional
 
-## Flush and shutdown
-
-The SDK batches events and flushes them automatically. Call `flush()` before process exit to ensure all buffered events are sent:
-
-```typescript
-process.on("SIGTERM", async () => {
-  await watcher.flush();
-  process.exit(0);
-});
-```
-
-## Error handling
-
-All methods return a `Promise`. Errors during ingestion are logged to `console.error` by default — they never throw so they don't interrupt your application.
-
-```typescript
-const watcher = new Watcher({
-  apiKey: process.env.WATCHER_API_KEY!,
-  appId: "my-service",
-  onError: (err) => myLogger.error("watcher error", err),
-});
+# Browser / Next.js public (write-only key)
+NEXT_PUBLIC_W24_API_KEY=wt_pub_...
+NEXT_PUBLIC_W24_GATEWAY_URL=https://ingest.watcher24.io
+VITE_W24_API_KEY=wt_pub_...
+VITE_W24_GATEWAY_URL=https://ingest.watcher24.io
 ```

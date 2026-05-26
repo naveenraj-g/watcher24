@@ -94,26 +94,25 @@ export default async function HomePage() {
               <span className="text-zinc-400 dark:text-white/40"># Install the SDK</span>
               {"\n"}
               <span className="text-green-600 dark:text-green-400">$</span>
-              <span className="text-zinc-800 dark:text-white"> npm install @watcher24/js</span>
+              <span className="text-zinc-800 dark:text-white"> npm install @watcher/node</span>
               {"\n\n"}
               <span className="text-zinc-400 dark:text-white/40"># Send your first event</span>
               {"\n"}
               <span className="text-blue-600 dark:text-blue-400">import</span>
-              <span className="text-zinc-800 dark:text-white"> {"{"} Watcher24 {"}"} </span>
+              <span className="text-zinc-800 dark:text-white"> {"{"} createNodeClient {"}"} </span>
               <span className="text-blue-600 dark:text-blue-400">from</span>
-              <span className="text-amber-600 dark:text-yellow-300"> &apos;@watcher24/js&apos;</span>
+              <span className="text-amber-600 dark:text-yellow-300"> &apos;@watcher/node&apos;</span>
               {"\n\n"}
               <span className="text-blue-600 dark:text-blue-400">const</span>
               <span className="text-zinc-800 dark:text-white"> w = </span>
-              <span className="text-blue-600 dark:text-blue-400">new</span>
-              <span className="text-amber-600 dark:text-yellow-300"> Watcher24</span>
-              <span className="text-zinc-800 dark:text-white">{"({ apiKey: process.env.W24_KEY })"}</span>
+              <span className="text-amber-600 dark:text-yellow-300">createNodeClient</span>
+              <span className="text-zinc-800 dark:text-white">{"({ apiKey: process.env.W24_API_KEY })"}</span>
               {"\n\n"}
               <span className="text-zinc-800 dark:text-white">w.</span>
-              <span className="text-amber-600 dark:text-yellow-300">track</span>
-              <span className="text-zinc-800 dark:text-white">{"({ event: "}</span>
+              <span className="text-amber-600 dark:text-yellow-300">audit</span>
+              <span className="text-zinc-800 dark:text-white">{"({ "}</span>
               <span className="text-green-600 dark:text-green-300">&apos;user.login&apos;</span>
-              <span className="text-zinc-800 dark:text-white">{", userId })"}</span>
+              <span className="text-zinc-800 dark:text-white">{", { userId } })"}</span>
               {"\n"}
               <span className="text-zinc-400 dark:text-white/40">{"// → event ingested in < 50ms"}</span>
             </code>
