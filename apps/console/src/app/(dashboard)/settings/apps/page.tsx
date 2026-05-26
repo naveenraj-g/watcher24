@@ -17,6 +17,16 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { formatDate } from "@/lib/utils";
 import type { App } from "@/lib/apps";
 
@@ -55,6 +65,8 @@ export default function AppsPage() {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<App | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   async function fetchApps() {
     setLoading(true);
@@ -86,15 +98,18 @@ export default function AppsPage() {
     setCreating(false);
   }
 
-  async function handleDelete(appId: string, name: string) {
-    if (!confirm(`Delete "${name}"? Existing API keys will be unlinked.`)) return;
-    const res = await fetch(`/api/apps/${appId}`, { method: "DELETE" });
+  async function confirmDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    const res = await fetch(`/api/apps/${deleteTarget.id}`, { method: "DELETE" });
     if (res.ok || res.status === 204) {
       toast.success("App deleted");
       await fetchApps();
     } else {
       toast.error("Failed to delete app");
     }
+    setDeleteTarget(null);
+    setDeleting(false);
   }
 
   const slug = slugify(newName);
@@ -184,7 +199,7 @@ export default function AppsPage() {
                     size="icon"
                     variant="ghost"
                     className="h-7 w-7 text-destructive hover:text-destructive shrink-0 ml-2"
-                    onClick={() => handleDelete(app.id, app.name)}
+                    onClick={() => setDeleteTarget(app)}
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
@@ -194,6 +209,27 @@ export default function AppsPage() {
           )}
         </CardContent>
       </Card>
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete &ldquo;{deleteTarget?.name}&rdquo;?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the app. Linked API keys will be unlinked but not deleted.
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? "Deleting…" : "Delete App"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

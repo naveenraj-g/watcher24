@@ -15,6 +15,16 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { Copy, KeyRound, Trash2, Plus } from "lucide-react";
 import { formatDate } from "@/lib/utils";
@@ -34,6 +44,8 @@ export default function ApiKeysPage() {
   const [creating, setCreating] = useState(false);
   const [newKeyName, setNewKeyName] = useState("");
   const [createdKey, setCreatedKey] = useState<string | null>(null);
+  const [revokeTarget, setRevokeTarget] = useState<ApiKey | null>(null);
+  const [revoking, setRevoking] = useState(false);
 
   async function fetchKeys() {
     setLoading(true);
@@ -66,14 +78,18 @@ export default function ApiKeysPage() {
     setCreating(false);
   }
 
-  async function handleRevoke(id: string) {
-    const { error } = await authClient.apiKey.delete({ keyId: id });
+  async function confirmRevoke() {
+    if (!revokeTarget) return;
+    setRevoking(true);
+    const { error } = await authClient.apiKey.delete({ keyId: revokeTarget.id });
     if (error) {
       toast.error(error.message ?? "Failed to revoke key");
     } else {
       toast.success("Key revoked");
       await fetchKeys();
     }
+    setRevokeTarget(null);
+    setRevoking(false);
   }
 
   function copyToClipboard(text: string) {
@@ -194,7 +210,7 @@ export default function ApiKeysPage() {
                       size="icon"
                       variant="ghost"
                       className="h-7 w-7 text-destructive hover:text-destructive"
-                      onClick={() => handleRevoke(key.id)}
+                      onClick={() => setRevokeTarget(key)}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
@@ -205,6 +221,27 @@ export default function ApiKeysPage() {
           )}
         </CardContent>
       </Card>
+      <AlertDialog open={!!revokeTarget} onOpenChange={(open) => { if (!open) setRevokeTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Revoke &ldquo;{revokeTarget?.name}&rdquo;?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently deletes the key. Any SDK or service using it will immediately stop authenticating.
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={revoking}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmRevoke}
+              disabled={revoking}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {revoking ? "Revoking…" : "Revoke Key"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

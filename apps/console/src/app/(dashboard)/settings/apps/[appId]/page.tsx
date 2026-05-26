@@ -21,6 +21,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/utils";
 import type { AppKey } from "@/lib/apps";
@@ -45,6 +55,8 @@ export default function AppDetailPage({
   const [loading, setLoading] = useState(true);
   const [linking, setLinking] = useState(false);
   const [selectedKeyId, setSelectedKeyId] = useState("");
+  const [unlinkTarget, setUnlinkTarget] = useState<AppKey | null>(null);
+  const [unlinking, setUnlinking] = useState(false);
 
   async function fetchKeys() {
     setLoading(true);
@@ -80,6 +92,24 @@ export default function AppDetailPage({
       toast.error(error ?? "Failed to link key");
     }
     setLinking(false);
+  }
+
+  async function confirmUnlink() {
+    if (!unlinkTarget) return;
+    setUnlinking(true);
+    const res = await fetch(`/api/apps/unlink-key`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ keyId: unlinkTarget.id }),
+    });
+    if (res.ok) {
+      toast.success("Key unlinked");
+      await fetchKeys();
+    } else {
+      toast.error("Failed to unlink key");
+    }
+    setUnlinkTarget(null);
+    setUnlinking(false);
   }
 
   // Keys not yet linked to this app (available to link)
@@ -185,22 +215,7 @@ export default function AppDetailPage({
                       variant="ghost"
                       className="h-7 w-7 text-muted-foreground hover:text-destructive"
                       title="Unlink key from app"
-                      onClick={async () => {
-                        // Unlinking = setting app_id back to null via a direct DB call.
-                        // We reuse the same endpoint with appId=null via a custom route.
-                        // For simplicity, we call the same POST endpoint with null to unlink.
-                        const res = await fetch(`/api/apps/unlink-key`, {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ keyId: key.id }),
-                        });
-                        if (res.ok) {
-                          toast.success("Key unlinked");
-                          await fetchKeys();
-                        } else {
-                          toast.error("Failed to unlink key");
-                        }
-                      }}
+                      onClick={() => setUnlinkTarget(key)}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
@@ -211,6 +226,28 @@ export default function AppDetailPage({
           )}
         </CardContent>
       </Card>
+      <AlertDialog open={!!unlinkTarget} onOpenChange={(open) => { if (!open) setUnlinkTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Unlink &ldquo;{unlinkTarget?.name}&rdquo;?</AlertDialogTitle>
+            <AlertDialogDescription>
+              The key will no longer be scoped to this app. Events sent with it will have no
+              <code className="mx-1 rounded bg-muted px-1 py-0.5 text-xs font-mono">application_id</code>
+              until it is linked to an app again. The key itself is not deleted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={unlinking}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmUnlink}
+              disabled={unlinking}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {unlinking ? "Unlinking…" : "Unlink Key"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
