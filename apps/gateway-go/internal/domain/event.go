@@ -97,6 +97,12 @@ type Event struct {
 	// Arbitrary event-specific data — stored as a raw JSON string in ClickHouse
 	Payload map[string]any `json:"payload,omitempty"`
 
+	// Source identifies where the event originated.
+	// "browser" for events submitted via a public token from a browser SDK.
+	// "server" for events submitted via a secret API key from a server SDK.
+	// This field is set by the gateway based on the key type — never trusted from input.
+	Source string `json:"source,omitempty"`
+
 	// Gateway-added metadata — set during enrichment, not from SDK
 	IPAddress  string `json:"ip_address,omitempty"`
 	SDKVersion string `json:"sdk_version,omitempty"`

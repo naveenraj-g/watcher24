@@ -34,6 +34,10 @@ type IngestInput struct {
 	SessionID      string
 	Payload        map[string]any
 
+	// Source identifies the origin of the event: "browser" or "server".
+	// Set by the transport layer based on the key type — never taken from the request body.
+	Source string
+
 	// Enrichment metadata — set by the transport layer from the HTTP request
 	IPAddress  string
 	SDKVersion string
@@ -157,6 +161,7 @@ func (uc *IngestEventUseCase) buildEvent(input IngestInput) (*domain.Event, erro
 		UserID:         input.UserID,
 		SessionID:      input.SessionID,
 		Payload:        input.Payload,
+		Source:         input.Source,
 		IPAddress:      input.IPAddress,
 		SDKVersion:     input.SDKVersion,
 		Runtime:        input.Runtime,

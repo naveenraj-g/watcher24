@@ -45,13 +45,21 @@ func main() {
 	defer pgAdapter.Close()
 	log.Println("gateway: connected to IAM database")
 
-	// Redis — used to publish events to streams
+	// Redis — publisher: writes events to streams consumed by the Python workers
 	redisAdapter, err := redisadapter.NewPublisherAdapter(ctx, cfg.RedisURL)
 	if err != nil {
-		log.Fatalf("gateway: failed to connect to Redis: %v", err)
+		log.Fatalf("gateway: failed to connect to Redis (publisher): %v", err)
 	}
 	defer redisAdapter.Close()
-	log.Println("gateway: connected to Redis")
+	log.Println("gateway: connected to Redis (publisher)")
+
+	// Redis — rate limiter: enforces per-minute caps for public browser tokens
+	rateLimiterAdapter, err := redisadapter.NewRateLimiterAdapter(ctx, cfg.RedisURL)
+	if err != nil {
+		log.Fatalf("gateway: failed to connect to Redis (rate limiter): %v", err)
+	}
+	defer rateLimiterAdapter.Close()
+	log.Println("gateway: connected to Redis (rate limiter)")
 
 	// ClickHouse — used to count monthly events for plan limit enforcement
 	chAdapter := chadapter.NewLimitCheckerAdapter(
@@ -68,7 +76,7 @@ func main() {
 	ingestUC := usecases.NewIngestEventUseCase(redisAdapter, chAdapter)
 
 	// ── 4. Create handlers ────────────────────────────────────────────────────
-	eventsHandler := handlers.NewEventsHandler(ingestUC, cfg.Region)
+	eventsHandler := handlers.NewEventsHandler(ingestUC, rateLimiterAdapter, cfg.Region)
 	healthHandler := handlers.NewHealthHandler(redisAdapter, pgAdapter)
 
 	// ── 5. Build server ───────────────────────────────────────────────────────

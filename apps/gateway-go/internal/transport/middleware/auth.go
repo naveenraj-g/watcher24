@@ -22,16 +22,28 @@ const (
 	// LocalEventLimitPerMonth holds the org's monthly event quota resolved from
 	// their active subscription plan. -1 means unlimited (enterprise).
 	LocalEventLimitPerMonth = "event_limit_per_month"
+	// LocalKeyType holds the key type ("secret" or "public") so handlers can
+	// apply type-specific logic (rate limiting, source tagging) without re-querying.
+	LocalKeyType            = "key_type"
+	// LocalMinuteRateLimit holds the per-minute event cap for public tokens.
+	// Not set (zero value) for secret keys — handlers must check LocalKeyType first.
+	LocalMinuteRateLimit    = "minute_rate_limit"
+	// LocalEventSource is "browser" for public tokens and "server" for secret keys.
+	// Set here once so every handler gets consistent tagging without extra logic.
+	LocalEventSource        = "event_source"
 )
 
 // Auth returns a Fiber middleware that validates the API key on every request.
 //
-// The key is extracted from the Authorization header ("Bearer <key>") or
-// the X-API-Key header. It is then validated against the IAM database via
-// the KeyValidator port. On success, organization_id and api_key_id are
-// stored in Fiber's request locals for downstream handlers to use.
+// For all keys: extracts and validates the key, stores org/app context in locals.
 //
-// On failure, the middleware short-circuits the request with a 401 response
+// For public tokens additionally:
+//   - Verifies the Origin header is in the token's AllowedOrigins list (403 if not).
+//     This is the primary security boundary — it prevents a leaked token from being
+//     used from any site the owner did not explicitly allow.
+//   - Stores key type and rate-limit cap so the handler can enforce per-minute limits.
+//
+// On any failure, the middleware short-circuits with an appropriate HTTP response
 // and the handler is never called.
 func Auth(validator ports.KeyValidator) fiber.Handler {
 	return func(c *fiber.Ctx) error {
@@ -45,15 +57,51 @@ func Auth(validator ports.KeyValidator) fiber.Handler {
 			return mapKeyError(c, err)
 		}
 
+		// Public token: enforce the origin allowlist before storing any context.
+		// This check runs before c.Next() so a disallowed request never reaches the handler.
+		if apiKey.KeyType == domain.KeyTypePublic {
+			origin := c.Get("Origin")
+			if !originAllowed(origin, apiKey.AllowedOrigins) {
+				return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+					"error": "origin not allowed",
+					"code":  "ORIGIN_NOT_ALLOWED",
+				})
+			}
+		}
+
+		// Determine event source from key type — set once here, used by all handlers.
+		eventSource := "server"
+		if apiKey.KeyType == domain.KeyTypePublic {
+			eventSource = "browser"
+		}
+
 		// Store resolved context in locals so handlers can read it without
 		// re-querying the database.
 		c.Locals(LocalOrganizationID, apiKey.OrganizationID)
 		c.Locals(LocalAPIKeyID, apiKey.ID)
 		c.Locals(LocalApplicationID, apiKey.AppID)
 		c.Locals(LocalEventLimitPerMonth, apiKey.EventLimitPerMonth)
+		c.Locals(LocalKeyType, string(apiKey.KeyType))
+		c.Locals(LocalMinuteRateLimit, apiKey.MinuteRateLimit)
+		c.Locals(LocalEventSource, eventSource)
 
 		return c.Next()
 	}
+}
+
+// originAllowed returns true if origin is present in the allowlist.
+// An empty allowlist (secret keys) is never checked — callers must guard with KeyTypePublic.
+// An empty origin string is rejected for public tokens so curl/server-side misuse is blocked.
+func originAllowed(origin string, allowedOrigins []string) bool {
+	if origin == "" {
+		return false
+	}
+	for _, allowed := range allowedOrigins {
+		if strings.EqualFold(origin, allowed) {
+			return true
+		}
+	}
+	return false
 }
 
 // extractAPIKey tries Authorization header first, then X-API-Key.

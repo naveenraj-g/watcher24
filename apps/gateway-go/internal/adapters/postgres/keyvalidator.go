@@ -75,20 +75,27 @@ func (a *KeyValidatorAdapter) Validate(ctx context.Context, rawKey string) (*dom
 	hash := hashKey(rawKey)
 
 	var (
-		id           string
-		referenceID  string
-		activeOrgID  *string // non-nil when referenceId is a user with an active org
-		appID        *string // non-nil when the key is scoped to a specific application
-		enabled      bool
-		expiresAt    *time.Time
-		permissions  *string
-		eventLimit   int64
+		id              string
+		referenceID     string
+		activeOrgID     *string // non-nil when referenceId is a user with an active org
+		appID           *string // non-nil when the key is scoped to a specific application
+		enabled         bool
+		expiresAt       *time.Time
+		permissions     *string
+		eventLimit      int64
+		keyType         string
+		allowedOrigins  []string
+		minuteRateLimit int64
 	)
 
 	// LEFT JOIN userContext so that when referenceId is a user ID we can
 	// resolve their activeOrganizationId in one round-trip.
 	// The correlated subquery resolves the org's active subscription plan →
 	// event limit in the same query, defaulting to 100_000 (free tier).
+	//
+	// keyType, allowedOrigins, and minuteRateLimit are the public token fields
+	// added to the IAM Prisma schema. They are present on all rows with safe
+	// defaults ("secret", [], 1000) so the query always returns valid values.
 	err := a.pool.QueryRow(ctx,
 		`SELECT a.id, a."referenceId", a.enabled, a."expiresAt", a.permissions,
 		        uc."activeOrganizationId",
@@ -112,13 +119,16 @@ func (a *KeyValidatorAdapter) Validate(ctx context.Context, rawKey string) (*dom
 		            LIMIT 1
 		          ),
 		          100000
-		        ) AS event_limit
+		        ) AS event_limit,
+		        COALESCE(a."keyType", 'secret') AS key_type,
+		        COALESCE(a."allowedOrigins", '{}') AS allowed_origins,
+		        COALESCE(a."minuteRateLimit", 1000) AS minute_rate_limit
 		 FROM apikey a
 		 LEFT JOIN "userContext" uc ON uc."userId" = a."referenceId"
 		 WHERE a.key = $1
 		 LIMIT 1`,
 		hash,
-	).Scan(&id, &referenceID, &enabled, &expiresAt, &permissions, &activeOrgID, &appID, &eventLimit)
+	).Scan(&id, &referenceID, &enabled, &expiresAt, &permissions, &activeOrgID, &appID, &eventLimit, &keyType, &allowedOrigins, &minuteRateLimit)
 
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -155,6 +165,9 @@ func (a *KeyValidatorAdapter) Validate(ctx context.Context, rawKey string) (*dom
 		Permissions:        permissions,
 		ExpiresAt:          expiresAt,
 		EventLimitPerMonth: eventLimit,
+		KeyType:            domain.KeyType(keyType),
+		AllowedOrigins:     allowedOrigins,
+		MinuteRateLimit:    minuteRateLimit,
 	}, nil
 }
 

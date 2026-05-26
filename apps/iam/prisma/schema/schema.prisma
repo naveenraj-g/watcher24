@@ -339,10 +339,17 @@ model Apikey {
   appId               String?      @map("app_id")
   application         Application? @relation(fields: [appId], references: [id], onDelete: SetNull)
 
+  // Public token fields — optional with safe defaults so better-auth's existing
+  // secret key creation code never needs to supply these.
+  keyType         String   @default("secret")   // "secret" | "public"
+  allowedOrigins  String[] @default([])          // CORS origin allowlist; empty = deny all (public tokens only)
+  minuteRateLimit Int      @default(1000)        // per-minute event cap; enforced by gateway for public tokens only
+
   @@index([configId])
   @@index([referenceId])
   @@index([key])
   @@index([appId])
+  @@index([keyType])
   @@map("apikey")
 }
 
