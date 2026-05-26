@@ -3,7 +3,7 @@
 // has subscription data from IAM) so this route stays ClickHouse-only.
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "@/lib/auth-server";
-import { queryMonthlyUsage } from "@/lib/clickhouse";
+import { getMonthlyEventCount } from "@/lib/clickhouse";
 
 const PLAN_LIMITS: Record<string, number> = {
   free: 100_000,
@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
   const orgId = session.session.activeOrganizationId ?? "";
   const plan = req.nextUrl.searchParams.get("plan") ?? "free";
 
-  const count = await queryMonthlyUsage(orgId);
+  const count = await getMonthlyEventCount(orgId);
   const limit = PLAN_LIMITS[plan] ?? 100_000;
 
   return NextResponse.json({

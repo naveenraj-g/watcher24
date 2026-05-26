@@ -15,11 +15,13 @@ import (
 	"watcher24/gateway/internal/ports"
 )
 
+
 // IngestInput carries the raw data from the SDK request before enrichment.
 // OrganizationID is already resolved by the auth middleware from the API key.
 type IngestInput struct {
-	OrganizationID string
-	ApplicationID  string
+	OrganizationID     string
+	EventLimitPerMonth int64  // -1 = unlimited; resolved from subscription by auth middleware
+	ApplicationID      string
 	Environment    string
 	EventType      domain.EventType
 	Severity       domain.Severity
@@ -45,23 +47,30 @@ type IngestBatchInput struct {
 }
 
 // IngestEventUseCase handles the full lifecycle of a single inbound event:
-// validate inputs → enrich with server-side metadata → publish to queue.
+// validate inputs → check monthly limit → enrich with server-side metadata → publish to queue.
 //
-// It depends on EventPublisher via interface so the real Redis adapter and
-// a test fake are both valid implementations.
+// It depends on EventPublisher and LimitChecker via interfaces so the real
+// adapters and test fakes are both valid implementations.
 type IngestEventUseCase struct {
 	publisher ports.EventPublisher
+	limiter   ports.LimitChecker
 }
 
-// NewIngestEventUseCase creates the use case with its required dependency.
+// NewIngestEventUseCase creates the use case with its required dependencies.
 // Called once at startup from the composition root (main.go).
-func NewIngestEventUseCase(publisher ports.EventPublisher) *IngestEventUseCase {
-	return &IngestEventUseCase{publisher: publisher}
+func NewIngestEventUseCase(publisher ports.EventPublisher, limiter ports.LimitChecker) *IngestEventUseCase {
+	return &IngestEventUseCase{publisher: publisher, limiter: limiter}
 }
 
-// Execute validates the input, enriches the event, and publishes it.
-// Returns an error if validation fails or the publisher is unavailable.
+// Execute validates the input, checks the monthly event limit, enriches the
+// event, and publishes it. Returns ErrEventLimitExceeded if the org has hit
+// their quota; fails open on limiter errors so ClickHouse downtime never
+// blocks ingestion.
 func (uc *IngestEventUseCase) Execute(ctx context.Context, input IngestInput) error {
+	if err := uc.checkLimit(ctx, input.OrganizationID, input.EventLimitPerMonth); err != nil {
+		return err
+	}
+
 	event, err := uc.buildEvent(input)
 	if err != nil {
 		return err
@@ -85,6 +94,12 @@ func (uc *IngestEventUseCase) ExecuteBatch(ctx context.Context, input IngestBatc
 	// SDKs should batch at 100-500 events; larger batches are rejected.
 	if len(input.Events) > 500 {
 		return ErrBatchTooLarge
+	}
+
+	// Check monthly quota once for the whole batch using the first event's org context.
+	first := input.Events[0]
+	if err := uc.checkLimit(ctx, first.OrganizationID, first.EventLimitPerMonth); err != nil {
+		return err
 	}
 
 	events := make([]*domain.Event, 0, len(input.Events))
@@ -147,6 +162,24 @@ func (uc *IngestEventUseCase) buildEvent(input IngestInput) (*domain.Event, erro
 		Runtime:        input.Runtime,
 		Region:         input.Region,
 	}, nil
+}
+
+// checkLimit queries the monthly event count and returns ErrEventLimitExceeded
+// if the org has reached their quota. Fails open on limiter errors so that
+// ClickHouse downtime never blocks ingestion.
+func (uc *IngestEventUseCase) checkLimit(ctx context.Context, orgID string, limitPerMonth int64) error {
+	if limitPerMonth <= 0 {
+		return nil // 0 = not set (e.g. tests); -1 = enterprise unlimited
+	}
+	count, err := uc.limiter.MonthlyCount(ctx, orgID)
+	if err != nil {
+		// Fail open — a usage-counting error should not block legitimate events.
+		return nil
+	}
+	if count >= limitPerMonth {
+		return domain.ErrEventLimitExceeded
+	}
+	return nil
 }
 
 // Validation errors — typed so callers can switch on them with errors.Is().

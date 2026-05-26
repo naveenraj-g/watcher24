@@ -25,6 +25,11 @@ type APIKey struct {
 
 	// ExpiresAt is nil for non-expiring keys.
 	ExpiresAt *time.Time
+
+	// EventLimitPerMonth is the maximum number of events the org may ingest in
+	// one calendar month, resolved from their active subscription plan.
+	// -1 means unlimited (enterprise). Defaults to 100_000 (free tier).
+	EventLimitPerMonth int64
 }
 
 // ErrAPIKeyNotFound is returned when no key matches the provided hash.
@@ -35,6 +40,9 @@ var ErrAPIKeyDisabled = domainError("api key is disabled")
 
 // ErrAPIKeyExpired is returned when the key's expiresAt is in the past.
 var ErrAPIKeyExpired = domainError("api key has expired")
+
+// ErrEventLimitExceeded is returned when the org has consumed their monthly event quota.
+var ErrEventLimitExceeded = domainError("monthly event limit exceeded")
 
 // domainError is a simple typed error for domain-level failures.
 // Using a named type lets callers do errors.Is() checks without importing

@@ -21,8 +21,9 @@ import (
 	"syscall"
 
 	"watcher24/gateway/config"
-	redisadapter "watcher24/gateway/internal/adapters/redis"
+	chadapter "watcher24/gateway/internal/adapters/clickhouse"
 	pgadapter "watcher24/gateway/internal/adapters/postgres"
+	redisadapter "watcher24/gateway/internal/adapters/redis"
 	"watcher24/gateway/internal/transport"
 	"watcher24/gateway/internal/transport/handlers"
 	"watcher24/gateway/internal/usecases"
@@ -52,10 +53,19 @@ func main() {
 	defer redisAdapter.Close()
 	log.Println("gateway: connected to Redis")
 
+	// ClickHouse — used to count monthly events for plan limit enforcement
+	chAdapter := chadapter.NewLimitCheckerAdapter(
+		cfg.ClickhouseURL,
+		cfg.ClickhouseUser,
+		cfg.ClickhousePassword,
+		cfg.ClickhouseDB,
+	)
+	log.Println("gateway: clickhouse limit checker ready")
+
 	// ── 3. Create use cases (inject adapters via port interfaces) ────────────
 	// Use cases receive the adapter through the port interface, so they
 	// have no knowledge of Redis or Postgres — only the contracts.
-	ingestUC := usecases.NewIngestEventUseCase(redisAdapter)
+	ingestUC := usecases.NewIngestEventUseCase(redisAdapter, chAdapter)
 
 	// ── 4. Create handlers ────────────────────────────────────────────────────
 	eventsHandler := handlers.NewEventsHandler(ingestUC, cfg.Region)

@@ -1,5 +1,5 @@
-// Unit tests for the IngestEvent use case.
-// All dependencies are faked — no real Redis or Postgres required.
+﻿// Unit tests for the IngestEvent use case.
+// All dependencies are faked â€” no real Redis or Postgres required.
 // Tests follow the pattern: Test<UseCase>_<Condition>_<ExpectedBehaviour>
 package usecases_test
 
@@ -36,6 +36,20 @@ func (f *fakePublisher) PublishBatch(_ context.Context, events []*domain.Event) 
 	return nil
 }
 
+// fakeLimiter is an in-memory implementation of ports.LimitChecker.
+// count is the value returned by MonthlyCount; err overrides with an error.
+type fakeLimiter struct {
+	count int64
+	err   error
+}
+
+func (f *fakeLimiter) MonthlyCount(_ context.Context, _ string) (int64, error) {
+	return f.count, f.err
+}
+
+// noLimiter returns a fake limiter that always reports zero usage (no blocking).
+func noLimiter() *fakeLimiter { return &fakeLimiter{} }
+
 // validInput returns a minimal valid IngestInput for use in tests.
 func validInput() usecases.IngestInput {
 	return usecases.IngestInput{
@@ -50,7 +64,7 @@ func validInput() usecases.IngestInput {
 
 func TestIngestEvent_ValidEvent_PublishesSuccessfully(t *testing.T) {
 	pub := &fakePublisher{}
-	uc := usecases.NewIngestEventUseCase(pub)
+	uc := usecases.NewIngestEventUseCase(pub, noLimiter())
 
 	err := uc.Execute(context.Background(), validInput())
 	if err != nil {
@@ -63,7 +77,7 @@ func TestIngestEvent_ValidEvent_PublishesSuccessfully(t *testing.T) {
 
 func TestIngestEvent_ValidEvent_SetsIngestedAt(t *testing.T) {
 	pub := &fakePublisher{}
-	uc := usecases.NewIngestEventUseCase(pub)
+	uc := usecases.NewIngestEventUseCase(pub, noLimiter())
 
 	before := time.Now().UTC()
 	_ = uc.Execute(context.Background(), validInput())
@@ -77,7 +91,7 @@ func TestIngestEvent_ValidEvent_SetsIngestedAt(t *testing.T) {
 
 func TestIngestEvent_ValidEvent_UsesServerTimeWhenTimestampMissing(t *testing.T) {
 	pub := &fakePublisher{}
-	uc := usecases.NewIngestEventUseCase(pub)
+	uc := usecases.NewIngestEventUseCase(pub, noLimiter())
 
 	input := validInput()
 	input.Timestamp = nil // SDK did not provide a timestamp
@@ -94,7 +108,7 @@ func TestIngestEvent_ValidEvent_UsesServerTimeWhenTimestampMissing(t *testing.T)
 
 func TestIngestEvent_ValidEvent_UsesProvidedTimestamp(t *testing.T) {
 	pub := &fakePublisher{}
-	uc := usecases.NewIngestEventUseCase(pub)
+	uc := usecases.NewIngestEventUseCase(pub, noLimiter())
 
 	provided := time.Date(2026, 5, 25, 10, 0, 0, 0, time.UTC)
 	input := validInput()
@@ -108,7 +122,7 @@ func TestIngestEvent_ValidEvent_UsesProvidedTimestamp(t *testing.T) {
 }
 
 func TestIngestEvent_MissingOrganizationID_ReturnsError(t *testing.T) {
-	uc := usecases.NewIngestEventUseCase(&fakePublisher{})
+	uc := usecases.NewIngestEventUseCase(&fakePublisher{}, noLimiter())
 
 	input := validInput()
 	input.OrganizationID = ""
@@ -120,7 +134,7 @@ func TestIngestEvent_MissingOrganizationID_ReturnsError(t *testing.T) {
 }
 
 func TestIngestEvent_MissingMessage_ReturnsError(t *testing.T) {
-	uc := usecases.NewIngestEventUseCase(&fakePublisher{})
+	uc := usecases.NewIngestEventUseCase(&fakePublisher{}, noLimiter())
 
 	input := validInput()
 	input.Message = ""
@@ -132,7 +146,7 @@ func TestIngestEvent_MissingMessage_ReturnsError(t *testing.T) {
 }
 
 func TestIngestEvent_InvalidEventType_ReturnsError(t *testing.T) {
-	uc := usecases.NewIngestEventUseCase(&fakePublisher{})
+	uc := usecases.NewIngestEventUseCase(&fakePublisher{}, noLimiter())
 
 	input := validInput()
 	input.EventType = "not_a_real_type"
@@ -144,7 +158,7 @@ func TestIngestEvent_InvalidEventType_ReturnsError(t *testing.T) {
 }
 
 func TestIngestEvent_InvalidSeverity_ReturnsError(t *testing.T) {
-	uc := usecases.NewIngestEventUseCase(&fakePublisher{})
+	uc := usecases.NewIngestEventUseCase(&fakePublisher{}, noLimiter())
 
 	input := validInput()
 	input.Severity = "LOUD"
@@ -157,7 +171,7 @@ func TestIngestEvent_InvalidSeverity_ReturnsError(t *testing.T) {
 
 func TestIngestEvent_PublisherFailure_ReturnsError(t *testing.T) {
 	pub := &fakePublisher{err: errors.New("redis down")}
-	uc := usecases.NewIngestEventUseCase(pub)
+	uc := usecases.NewIngestEventUseCase(pub, noLimiter())
 
 	err := uc.Execute(context.Background(), validInput())
 	if err == nil {
@@ -167,7 +181,7 @@ func TestIngestEvent_PublisherFailure_ReturnsError(t *testing.T) {
 
 func TestIngestBatch_ValidBatch_PublishesAllEvents(t *testing.T) {
 	pub := &fakePublisher{}
-	uc := usecases.NewIngestEventUseCase(pub)
+	uc := usecases.NewIngestEventUseCase(pub, noLimiter())
 
 	batch := usecases.IngestBatchInput{
 		Events: []usecases.IngestInput{validInput(), validInput(), validInput()},
@@ -184,7 +198,7 @@ func TestIngestBatch_ValidBatch_PublishesAllEvents(t *testing.T) {
 
 func TestIngestBatch_EmptyBatch_DoesNothing(t *testing.T) {
 	pub := &fakePublisher{}
-	uc := usecases.NewIngestEventUseCase(pub)
+	uc := usecases.NewIngestEventUseCase(pub, noLimiter())
 
 	err := uc.ExecuteBatch(context.Background(), usecases.IngestBatchInput{Events: nil})
 	if err != nil {
@@ -197,7 +211,7 @@ func TestIngestBatch_EmptyBatch_DoesNothing(t *testing.T) {
 
 func TestIngestBatch_ExceedsMaxSize_ReturnsError(t *testing.T) {
 	pub := &fakePublisher{}
-	uc := usecases.NewIngestEventUseCase(pub)
+	uc := usecases.NewIngestEventUseCase(pub, noLimiter())
 
 	events := make([]usecases.IngestInput, 501)
 	for i := range events {

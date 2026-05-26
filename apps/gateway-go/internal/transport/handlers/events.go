@@ -12,6 +12,7 @@ import (
 	"watcher24/gateway/internal/usecases"
 )
 
+
 // eventRequest is the JSON shape expected from SDKs.
 // OrganizationID is intentionally absent — it is resolved from the API key,
 // not trusted from the request body.
@@ -83,23 +84,24 @@ func (h *EventsHandler) handle(c *fiber.Ctx, forcedType string) error {
 	// to an app in the console. This prevents arbitrary strings from being
 	// stored as application_id in ClickHouse.
 	appID, _ := c.Locals(middleware.LocalApplicationID).(string)
+	eventLimit, _ := c.Locals(middleware.LocalEventLimitPerMonth).(int64)
 
 	// Detect if the body is an array (batch) or a single object.
 	body := c.Body()
 	if len(body) > 0 && body[0] == '[' {
-		return h.handleBatch(c, orgID, appID, forcedType)
+		return h.handleBatch(c, orgID, appID, forcedType, eventLimit)
 	}
-	return h.handleSingle(c, orgID, appID, forcedType)
+	return h.handleSingle(c, orgID, appID, forcedType, eventLimit)
 }
 
 // handleSingle processes a single event from the request body.
-func (h *EventsHandler) handleSingle(c *fiber.Ctx, orgID, appID, forcedType string) error {
+func (h *EventsHandler) handleSingle(c *fiber.Ctx, orgID, appID, forcedType string, eventLimit int64) error {
 	var req eventRequest
 	if err := c.BodyParser(&req); err != nil {
 		return respondError(c, fiber.StatusBadRequest, "invalid JSON body", "INVALID_PAYLOAD")
 	}
 
-	input := h.buildInput(req, orgID, appID, forcedType, c)
+	input := h.buildInput(req, orgID, appID, forcedType, eventLimit, c)
 	if err := h.ingestUC.Execute(c.Context(), input); err != nil {
 		return mapUseCaseError(c, err)
 	}
@@ -108,7 +110,7 @@ func (h *EventsHandler) handleSingle(c *fiber.Ctx, orgID, appID, forcedType stri
 }
 
 // handleBatch processes an array of events from the request body.
-func (h *EventsHandler) handleBatch(c *fiber.Ctx, orgID, appID, forcedType string) error {
+func (h *EventsHandler) handleBatch(c *fiber.Ctx, orgID, appID, forcedType string, eventLimit int64) error {
 	var reqs []eventRequest
 	if err := c.BodyParser(&reqs); err != nil {
 		return respondError(c, fiber.StatusBadRequest, "invalid JSON array", "INVALID_PAYLOAD")
@@ -116,7 +118,7 @@ func (h *EventsHandler) handleBatch(c *fiber.Ctx, orgID, appID, forcedType strin
 
 	inputs := make([]usecases.IngestInput, len(reqs))
 	for i, req := range reqs {
-		inputs[i] = h.buildInput(req, orgID, appID, forcedType, c)
+		inputs[i] = h.buildInput(req, orgID, appID, forcedType, eventLimit, c)
 	}
 
 	if err := h.ingestUC.ExecuteBatch(c.Context(), usecases.IngestBatchInput{Events: inputs}); err != nil {
@@ -132,7 +134,7 @@ func (h *EventsHandler) handleBatch(c *fiber.Ctx, orgID, appID, forcedType strin
 // appID comes exclusively from the API key's linked app (set by auth middleware).
 // Any appId value in the request body or SDK config is intentionally ignored —
 // application_id is only trusted when the key is linked to an app in the console.
-func (h *EventsHandler) buildInput(req eventRequest, orgID, appID, forcedType string, c *fiber.Ctx) usecases.IngestInput {
+func (h *EventsHandler) buildInput(req eventRequest, orgID, appID, forcedType string, eventLimit int64, c *fiber.Ctx) usecases.IngestInput {
 	eventType := req.EventType
 	if forcedType != "" {
 		eventType = forcedType
@@ -142,8 +144,9 @@ func (h *EventsHandler) buildInput(req eventRequest, orgID, appID, forcedType st
 	resolvedAppID := appID
 
 	return usecases.IngestInput{
-		OrganizationID: orgID,
-		ApplicationID:  resolvedAppID,
+		OrganizationID:     orgID,
+		EventLimitPerMonth: eventLimit,
+		ApplicationID:      resolvedAppID,
 		Environment:    req.Environment,
 		EventType:      domain.EventType(eventType),
 		Severity:       domain.Severity(req.Severity),
@@ -166,6 +169,8 @@ func (h *EventsHandler) buildInput(req eventRequest, orgID, appID, forcedType st
 // mapUseCaseError translates use case errors into HTTP responses.
 func mapUseCaseError(c *fiber.Ctx, err error) error {
 	switch {
+	case errors.Is(err, domain.ErrEventLimitExceeded):
+		return respondError(c, fiber.StatusTooManyRequests, "monthly event limit exceeded — upgrade your plan", "EVENT_LIMIT_EXCEEDED")
 	case errors.Is(err, usecases.ErrBatchTooLarge):
 		return respondError(c, fiber.StatusRequestEntityTooLarge, err.Error(), "BATCH_TOO_LARGE")
 	case errors.Is(err, usecases.ErrMissingMessage),

@@ -29,6 +29,13 @@ type Config struct {
 
 	// RedisURL is the Redis connection string for publishing events to streams.
 	RedisURL string
+
+	// ClickhouseURL is the ClickHouse HTTP endpoint used to count monthly events
+	// for plan limit enforcement (e.g. "http://localhost:8123").
+	ClickhouseURL      string
+	ClickhouseUser     string
+	ClickhousePassword string
+	ClickhouseDB       string
 }
 
 // Load reads environment variables and returns a populated Config.
@@ -42,11 +49,15 @@ func Load() *Config {
 	}
 
 	return &Config{
-		Port:           getEnv("GATEWAY_PORT", "8080"),
-		Env:            getEnv("GATEWAY_ENV", "development"),
-		Region:         getEnv("GATEWAY_REGION", "local"),
-		IAMDatabaseURL: getEnv("IAM_DATABASE_URL", "postgresql://watcher:watcher_secret@localhost:5433/iam"),
-		RedisURL:       getEnv("REDIS_URL", "redis://localhost:6379"),
+		Port:               getEnv("GATEWAY_PORT", "8080"),
+		Env:                getEnv("GATEWAY_ENV", "development"),
+		Region:             getEnv("GATEWAY_REGION", "local"),
+		IAMDatabaseURL:     getEnv("IAM_DATABASE_URL", "postgresql://watcher:watcher_secret@localhost:5433/iam"),
+		RedisURL:           getEnv("REDIS_URL", "redis://localhost:6379"),
+		ClickhouseURL:      getEnv("CLICKHOUSE_URL", "http://localhost:8123"),
+		ClickhouseUser:     getEnv("CLICKHOUSE_USER", "watcher"),
+		ClickhousePassword: getEnv("CLICKHOUSE_PASSWORD", "watcher_secret"),
+		ClickhouseDB:       getEnv("CLICKHOUSE_DB", "watcher"),
 	}
 }
 

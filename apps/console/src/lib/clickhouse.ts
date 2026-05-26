@@ -230,3 +230,20 @@ export async function queryEvents(opts: {
 
   return result.json<EventRow>();
 }
+
+// getMonthlyEventCount returns the number of events ingested by an org in the
+// current calendar month. Used by the billing usage meter.
+export async function getMonthlyEventCount(orgId: string): Promise<number> {
+  const result = await clickhouse.query({
+    query: `
+      SELECT COUNT(*) AS count
+      FROM watcher.events
+      WHERE organization_id = {orgId: String}
+        AND toStartOfMonth(timestamp) = toStartOfMonth(now())
+    `,
+    query_params: { orgId },
+    format: "JSONEachRow",
+  });
+  const rows = await result.json<{ count: string }>();
+  return parseInt(rows[0]?.count ?? "0", 10);
+}

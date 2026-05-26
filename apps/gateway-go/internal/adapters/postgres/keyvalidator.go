@@ -82,21 +82,43 @@ func (a *KeyValidatorAdapter) Validate(ctx context.Context, rawKey string) (*dom
 		enabled      bool
 		expiresAt    *time.Time
 		permissions  *string
+		eventLimit   int64
 	)
 
 	// LEFT JOIN userContext so that when referenceId is a user ID we can
 	// resolve their activeOrganizationId in one round-trip.
-	// Also select app_id to support per-application key scoping.
+	// The correlated subquery resolves the org's active subscription plan →
+	// event limit in the same query, defaulting to 100_000 (free tier).
 	err := a.pool.QueryRow(ctx,
 		`SELECT a.id, a."referenceId", a.enabled, a."expiresAt", a.permissions,
 		        uc."activeOrganizationId",
-		        a.app_id
+		        a.app_id,
+		        COALESCE(
+		          (
+		            SELECT CASE s.plan
+		                     WHEN 'enterprise' THEN -1
+		                     WHEN 'pro'        THEN 5000000
+		                     ELSE                   100000
+		                   END
+		            FROM subscription s
+		            INNER JOIN member m ON m."userId" = s."referenceId"
+		            WHERE m."organizationId" = COALESCE(uc."activeOrganizationId", a."referenceId")
+		              AND s.status IN ('active', 'trialing')
+		            ORDER BY CASE s.plan
+		                       WHEN 'enterprise' THEN 1
+		                       WHEN 'pro'        THEN 2
+		                       ELSE                   3
+		                     END
+		            LIMIT 1
+		          ),
+		          100000
+		        ) AS event_limit
 		 FROM apikey a
 		 LEFT JOIN "userContext" uc ON uc."userId" = a."referenceId"
 		 WHERE a.key = $1
 		 LIMIT 1`,
 		hash,
-	).Scan(&id, &referenceID, &enabled, &expiresAt, &permissions, &activeOrgID, &appID)
+	).Scan(&id, &referenceID, &enabled, &expiresAt, &permissions, &activeOrgID, &appID, &eventLimit)
 
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -127,11 +149,12 @@ func (a *KeyValidatorAdapter) Validate(ctx context.Context, rawKey string) (*dom
 	}
 
 	return &domain.APIKey{
-		ID:             id,
-		OrganizationID: orgID,
-		AppID:          resolvedAppID,
-		Permissions:    permissions,
-		ExpiresAt:      expiresAt,
+		ID:                 id,
+		OrganizationID:     orgID,
+		AppID:              resolvedAppID,
+		Permissions:        permissions,
+		ExpiresAt:          expiresAt,
+		EventLimitPerMonth: eventLimit,
 	}, nil
 }
 

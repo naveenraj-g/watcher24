@@ -16,12 +16,12 @@ import (
 // Fiber locals keys — used to pass validated context from middleware to handlers.
 // Using typed constants avoids typo bugs from raw string keys.
 const (
-	LocalOrganizationID = "organization_id"
-	LocalAPIKeyID       = "api_key_id"
-	// LocalApplicationID holds the app_id resolved from the API key row.
-	// Empty for legacy keys that have no app_id; handlers fall back to the
-	// x-app-id header in that case for backwards compatibility.
-	LocalApplicationID = "application_id"
+	LocalOrganizationID    = "organization_id"
+	LocalAPIKeyID          = "api_key_id"
+	LocalApplicationID     = "application_id"
+	// LocalEventLimitPerMonth holds the org's monthly event quota resolved from
+	// their active subscription plan. -1 means unlimited (enterprise).
+	LocalEventLimitPerMonth = "event_limit_per_month"
 )
 
 // Auth returns a Fiber middleware that validates the API key on every request.
@@ -50,6 +50,7 @@ func Auth(validator ports.KeyValidator) fiber.Handler {
 		c.Locals(LocalOrganizationID, apiKey.OrganizationID)
 		c.Locals(LocalAPIKeyID, apiKey.ID)
 		c.Locals(LocalApplicationID, apiKey.AppID)
+		c.Locals(LocalEventLimitPerMonth, apiKey.EventLimitPerMonth)
 
 		return c.Next()
 	}
