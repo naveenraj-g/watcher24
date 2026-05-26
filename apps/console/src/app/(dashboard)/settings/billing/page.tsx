@@ -1,6 +1,7 @@
 // Billing settings — shows current plan, monthly usage meter, and upgrade/portal actions.
 "use client";
 
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { authClient } from "@/lib/auth";
 import { toast } from "sonner";
@@ -23,6 +24,9 @@ import {
   AlertTriangle,
   LayoutGrid,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+type BillingPeriod = "monthly" | "yearly";
 
 type Subscription = {
   id: string;
@@ -65,6 +69,8 @@ function formatLimit(n: number): string {
 }
 
 export default function BillingPage() {
+  const [billing, setBilling] = useState<BillingPeriod>("monthly");
+
   const { data: subData, isLoading: subLoading } = useQuery({
     queryKey: ["subscription"],
     queryFn: async () => {
@@ -89,6 +95,7 @@ export default function BillingPage() {
     const origin = window.location.origin;
     const result = await authClient.subscription.upgrade({
       plan,
+      annual: billing === "yearly",
       successUrl: `${origin}/settings/billing?upgraded=true`,
       cancelUrl: `${origin}/settings/billing`,
     });
@@ -178,11 +185,46 @@ export default function BillingPage() {
                 <span className="text-sm text-muted-foreground mb-1">— $0/month</span>
               )}
               {activePlan === "pro" && (
-                <span className="text-sm text-muted-foreground mb-1">— $29/month</span>
+                <span className="text-sm text-muted-foreground mb-1">
+                  — {billing === "yearly" ? "$24/mo · billed $290/yr" : "$29/month"}
+                </span>
               )}
               {activePlan === "enterprise" && (
-                <span className="text-sm text-muted-foreground mb-1">— $99/month</span>
+                <span className="text-sm text-muted-foreground mb-1">
+                  — {billing === "yearly" ? "$82/mo · billed $990/yr" : "$99/month"}
+                </span>
               )}
+            </div>
+          )}
+
+          {/* Billing period toggle — only shown when not on free plan or when upgrading */}
+          {activePlan === "free" && !isLoading && (
+            <div className="flex items-center gap-1 w-fit rounded-lg border bg-muted/40 p-1">
+              <button
+                onClick={() => setBilling("monthly")}
+                className={cn(
+                  "rounded-md px-3 py-1 text-xs font-medium transition-all",
+                  billing === "monthly"
+                    ? "bg-background shadow-sm text-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                Monthly
+              </button>
+              <button
+                onClick={() => setBilling("yearly")}
+                className={cn(
+                  "flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-medium transition-all",
+                  billing === "yearly"
+                    ? "bg-background shadow-sm text-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                Yearly
+                <span className="rounded px-1 py-0.5 text-[10px] font-semibold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                  Save 17%
+                </span>
+              </button>
             </div>
           )}
 
@@ -309,17 +351,48 @@ export default function BillingPage() {
               Pro gives you 5M events/month, 90-day retention, and 20 team members.
             </CardDescription>
           </CardHeader>
-          <CardContent className="flex flex-wrap gap-2">
-            <Button onClick={() => handleUpgrade("pro")}>
-              <ArrowUpRight className="mr-1.5 h-4 w-4" />
-              Upgrade to Pro — $29/month
-            </Button>
-            <Button variant="ghost" asChild>
-              <Link href="/settings/billing/plans">
-                <LayoutGrid className="mr-1.5 h-4 w-4" />
-                Compare all plans
-              </Link>
-            </Button>
+          <CardContent className="space-y-3">
+            <div className="flex items-center gap-1 w-fit rounded-lg border bg-background p-1">
+              <button
+                onClick={() => setBilling("monthly")}
+                className={cn(
+                  "rounded-md px-3 py-1 text-xs font-medium transition-all",
+                  billing === "monthly"
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                Monthly
+              </button>
+              <button
+                onClick={() => setBilling("yearly")}
+                className={cn(
+                  "flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-medium transition-all",
+                  billing === "yearly"
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                Yearly
+                <span className="rounded px-1 py-0.5 text-[10px] font-semibold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                  Save 17%
+                </span>
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={() => handleUpgrade("pro")}>
+                <ArrowUpRight className="mr-1.5 h-4 w-4" />
+                {billing === "yearly"
+                  ? "Upgrade to Pro — $24/mo · $290/yr"
+                  : "Upgrade to Pro — $29/month"}
+              </Button>
+              <Button variant="ghost" asChild>
+                <Link href="/settings/billing/plans">
+                  <LayoutGrid className="mr-1.5 h-4 w-4" />
+                  Compare all plans
+                </Link>
+              </Button>
+            </div>
           </CardContent>
         </Card>
       )}

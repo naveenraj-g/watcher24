@@ -1,6 +1,7 @@
 // Plans comparison — side-by-side Free / Pro / Enterprise feature table with upgrade CTAs.
 "use client";
 
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { authClient } from "@/lib/auth";
 import { toast } from "sonner";
@@ -12,7 +13,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Check, Minus, Zap, ArrowUpRight } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 type Subscription = {
   id: string;
@@ -20,12 +23,27 @@ type Subscription = {
   status: string;
 };
 
+type BillingPeriod = "monthly" | "yearly";
+
+const PLAN_PRICING: Record<string, Record<BillingPeriod, { price: string; sub: string }>> = {
+  free: {
+    monthly: { price: "$0",  sub: "forever" },
+    yearly:  { price: "$0",  sub: "forever" },
+  },
+  pro: {
+    monthly: { price: "$29", sub: "per month" },
+    yearly:  { price: "$24", sub: "per month, billed $290/yr" },
+  },
+  enterprise: {
+    monthly: { price: "$99", sub: "per month" },
+    yearly:  { price: "$82", sub: "per month, billed $990/yr" },
+  },
+};
+
 const PLANS = [
   {
     id: "free",
     name: "Free",
-    price: "$0",
-    period: "forever",
     description: "For individuals and small projects getting started.",
     cta: null,
     highlight: false,
@@ -33,8 +51,6 @@ const PLANS = [
   {
     id: "pro",
     name: "Pro",
-    price: "$29",
-    period: "per month",
     description: "For growing teams that need more events and retention.",
     cta: "pro" as const,
     highlight: true,
@@ -42,8 +58,6 @@ const PLANS = [
   {
     id: "enterprise",
     name: "Enterprise",
-    price: "$99",
-    period: "per month",
     description: "For large organisations that need unlimited scale.",
     cta: "enterprise" as const,
     highlight: false,
@@ -87,6 +101,8 @@ function Cell({ value }: { value: FeatureValue }) {
 }
 
 export default function PlansPage() {
+  const [billing, setBilling] = useState<BillingPeriod>("monthly");
+
   const { data: subData, isLoading } = useQuery({
     queryKey: ["subscription"],
     queryFn: async () => {
@@ -102,6 +118,7 @@ export default function PlansPage() {
     const origin = window.location.origin;
     const result = await authClient.subscription.upgrade({
       plan,
+      annual: billing === "yearly",
       successUrl: `${origin}/settings/billing?upgraded=true`,
       cancelUrl: `${origin}/settings/billing/plans`,
     });
@@ -122,10 +139,42 @@ export default function PlansPage() {
         </p>
       </div>
 
+      {/* Billing period toggle */}
+      <div className="flex items-center justify-center">
+        <div className="flex items-center gap-1 rounded-lg border bg-muted/40 p-1">
+          <button
+            onClick={() => setBilling("monthly")}
+            className={cn(
+              "rounded-md px-4 py-1.5 text-sm font-medium transition-all",
+              billing === "monthly"
+                ? "bg-background shadow-sm text-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            Monthly
+          </button>
+          <button
+            onClick={() => setBilling("yearly")}
+            className={cn(
+              "flex items-center gap-2 rounded-md px-4 py-1.5 text-sm font-medium transition-all",
+              billing === "yearly"
+                ? "bg-background shadow-sm text-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            Yearly
+            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+              Save 17%
+            </Badge>
+          </button>
+        </div>
+      </div>
+
       {/* Plan cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {PLANS.map((plan) => {
           const isCurrent = activePlan === plan.id;
+          const pricing = PLAN_PRICING[plan.id][billing];
           return (
             <Card
               key={plan.id}
@@ -143,9 +192,9 @@ export default function PlansPage() {
                 )}
                 <CardTitle className="text-lg">{plan.name}</CardTitle>
                 <div className="flex items-end gap-1">
-                  <span className="text-3xl font-bold">{plan.price}</span>
+                  <span className="text-3xl font-bold">{pricing.price}</span>
                   <span className="text-sm text-muted-foreground mb-1">
-                    /{plan.period}
+                    /{pricing.sub}
                   </span>
                 </div>
                 <CardDescription className="text-xs">
