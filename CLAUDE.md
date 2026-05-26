@@ -231,7 +231,44 @@ npm app recipes in the root `justfile` delegate with `cd <app> && pnpm <script>`
 
 ---
 
-### 9. Git
+### 9. IAM Is the Source of Truth for Identity Data (mandatory)
+
+The IAM app (`apps/iam`) owns the PostgreSQL database schema for all identity-related tables: `user`, `session`, `apikey`, `organization`, `member`, `subscription`, etc. These tables are managed by **better-auth + Prisma** inside IAM — Prisma is the migration authority.
+
+**Rule: Never write raw SQL migrations in `infrastructure/postgres/migrations/` that touch IAM-owned tables.**
+
+If you add a migration there but IAM later runs `prisma migrate`, Prisma will conflict with or drop your changes because it doesn't know about them.
+
+**The correct flow whenever you need to change IAM data or schema:**
+
+```
+Need to change IAM data/schema?
+  ↓
+1. Modify the Prisma schema inside apps/iam/prisma/schema.prisma
+2. Run `prisma migrate dev` inside apps/iam — Prisma owns the migration
+3. Add a secured API endpoint in apps/iam that performs the operation
+4. Other services (console, gateway) call that IAM endpoint — never touch the IAM DB directly
+```
+
+**What this means in practice:**
+
+| Scenario | Wrong | Right |
+|----------|-------|-------|
+| Add a column to `apikey` | Write `ALTER TABLE apikey ADD COLUMN ...` in `infrastructure/postgres/migrations/` | Add the field to `apps/iam/prisma/schema.prisma`, run `prisma migrate dev`, expose via IAM API |
+| Create a new key type | Insert directly into `apikey` from the console's pg pool | Add a `POST /api/internal/public-tokens` route in IAM; console calls that route |
+| Read org subscription data | Query `subscription` table from gateway or console directly | IAM exposes `GET /api/internal/org/:id/plan`; caller uses that |
+
+**IAM API endpoint security rules:**
+- Internal endpoints (called by console/gateway, not by end users) must be protected with a shared secret header: `X-Internal-Secret: <IAM_INTERNAL_SECRET env var>`
+- Never expose an internal endpoint without authentication — even internal traffic must be authenticated
+- Document every new endpoint in `apps/iam/docs/api.md`
+
+**What `infrastructure/postgres/migrations/` is for:**
+Only tables that are NOT owned by IAM — e.g., `applications` (the Watcher24-specific app registry). These are managed by raw SQL migrations because no ORM owns them.
+
+---
+
+### 10. Git
 
 - All MVP work goes on the `mvp` branch
 - Commit message format: `feat:`, `fix:`, `refactor:`, `test:`, `docs:`
