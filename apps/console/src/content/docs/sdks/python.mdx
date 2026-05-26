@@ -26,7 +26,8 @@ client = Client(
     # in the dashboard. Examples: "payment-api", "auth-worker", "ai-agent".
     service_name=os.environ.get("W24_SERVICE_NAME", ""),  # optional
     environment=os.environ.get("W24_ENVIRONMENT", "production"),
-    gateway_url=os.environ.get("W24_GATEWAY_URL", "http://localhost:8080"),
+    # gateway_url defaults to https://ingest.watcher24.io — only set for local dev or self-hosted.
+    gateway_url=os.environ.get("W24_GATEWAY_URL"),
 )
 ```
 
@@ -45,7 +46,7 @@ atexit.register(client.shutdown)
 | `app_id` | `str` | No | Only needed for legacy org-level keys. App-scoped keys resolve the application automatically. |
 | `service_name` | `str` | No | Label the sending component (e.g. `"payment-api"`, `"ai-agent"`). Stored for filtering in the dashboard. |
 | `environment` | `str` | No | Defaults to `"production"` |
-| `gateway_url` | `str` | No | Override the ingest endpoint |
+| `gateway_url` | `str` | No | Override the ingest endpoint. Defaults to <GatewayUrl />. Only needed for self-hosted deployments or local dev. |
 | `flush_interval` | `float` | No | Flush interval in seconds (default `0.5`) |
 | `flush_at` | `int` | No | Flush when buffer reaches this size (default `100`) |
 
@@ -186,10 +187,12 @@ All options after `message` are keyword-only. Use `payload={"port": 3000}` — n
 ## Environment variables
 
 ```bash
-W24_API_KEY=wt_...                        # required
-W24_SERVICE_NAME=my-service               # optional — component label for filtering
-W24_GATEWAY_URL=http://localhost:8080     # optional
-W24_ENVIRONMENT=production                # optional
+W24_API_KEY=wt_...              # required
+W24_SERVICE_NAME=my-service    # optional — component label for filtering
+W24_ENVIRONMENT=production     # optional
+
+# Only needed for local dev or self-hosted (SDK defaults to https://ingest.watcher24.io)
+# W24_GATEWAY_URL=http://localhost:8080
 ```
 
 Load with python-dotenv:

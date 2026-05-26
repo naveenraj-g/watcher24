@@ -20,6 +20,8 @@ export const watcherBrowserClient = createBrowserClient({
   // serviceName labels this component in the dashboard — "nextjs-browser" lets you
   // distinguish frontend events from server-side events for the same app.
   serviceName: "nextjs-browser",
-  gatewayUrl: process.env.NEXT_PUBLIC_W24_GATEWAY_URL ?? "http://localhost:8080",
+  // gatewayUrl defaults to https://ingest.watcher24.io — only override for
+  // local dev (http://localhost:8080) or self-hosted deployments.
+  gatewayUrl: process.env.NEXT_PUBLIC_W24_GATEWAY_URL,
   environment: process.env.NODE_ENV ?? "development",
 });

@@ -26,6 +26,8 @@ export const watcher =
     // serviceName labels this component in the dashboard so you can filter by service.
     // Change this to reflect what this Next.js instance is (e.g. "marketing-site", "dashboard-api").
     serviceName: "nextjs-example",
-    gatewayUrl: process.env.W24_GATEWAY_URL ?? "http://localhost:8080",
+    // gatewayUrl defaults to https://ingest.watcher24.io — only override for
+    // local dev (http://localhost:8080) or self-hosted deployments.
+    gatewayUrl: process.env.W24_GATEWAY_URL,
     environment: process.env.NODE_ENV ?? "development",
   }));

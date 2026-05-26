@@ -17,6 +17,8 @@ client = Client(
     # service_name labels this component in the dashboard — filter by "fastapi-example"
     # to isolate these server events from other services in the same app.
     service_name=os.environ.get("W24_SERVICE_NAME", "fastapi-example"),
-    gateway_url=os.environ.get("W24_GATEWAY_URL", "http://localhost:8080"),
+    # gateway_url defaults to https://ingest.watcher24.io — only set W24_GATEWAY_URL
+    # for local dev (http://localhost:8080) or self-hosted deployments.
+    gateway_url=os.environ.get("W24_GATEWAY_URL"),
     environment=os.environ.get("W24_ENVIRONMENT", "development"),
 )

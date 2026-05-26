@@ -43,7 +43,9 @@ export const watcher = createNodeClient({
   // services send to the same app (e.g. "payment-api", "auth-worker").
   serviceName: process.env.W24_SERVICE_NAME,   // optional
   environment: process.env.NODE_ENV ?? "production",
-  gatewayUrl: process.env.W24_GATEWAY_URL,     // optional
+  // gatewayUrl is optional — defaults to https://ingest.watcher24.io
+  // Only set W24_GATEWAY_URL for local dev or self-hosted deployments.
+  gatewayUrl: process.env.W24_GATEWAY_URL,
 });
 
 process.on("SIGTERM", () => watcher.shutdown());
@@ -56,7 +58,7 @@ process.on("SIGINT",  () => watcher.shutdown());
 | `appId` | `string` | No | Only needed for legacy org-level keys. App-scoped keys resolve the application automatically. |
 | `serviceName` | `string` | No | Label the sending component (e.g. `"payment-api"`, `"ai-agent"`). Stored for filtering in the dashboard. |
 | `environment` | `string` | No | Defaults to `"production"` |
-| `gatewayUrl` | `string` | No | Override the ingest endpoint |
+| `gatewayUrl` | `string` | No | Override the ingest endpoint. Defaults to <GatewayUrl />. Only needed for self-hosted deployments or local dev. |
 | `flushInterval` | `number` | No | Flush interval in ms (default `500`) |
 | `flushAt` | `number` | No | Flush when buffer reaches this size (default `100`) |
 
@@ -224,15 +226,17 @@ client.shutdown(): Promise<void>
 ```bash
 # Server-side (never expose to the browser)
 W24_API_KEY=wt_...
-W24_SERVICE_NAME=my-api          # optional — component label for filtering
-W24_GATEWAY_URL=http://localhost:8080   # optional
-W24_ENVIRONMENT=production              # optional
+W24_SERVICE_NAME=my-api       # optional — component label for filtering
+W24_ENVIRONMENT=production    # optional
+
+# Only needed for local dev or self-hosted (SDK defaults to https://ingest.watcher24.io)
+# W24_GATEWAY_URL=http://localhost:8080
 
 # Browser / Vite (public token — safe to expose)
 VITE_W24_PUBLIC_TOKEN=wpub_...
-VITE_W24_GATEWAY_URL=https://ingest.watcher24.io
+# VITE_W24_GATEWAY_URL=http://localhost:8080   # local dev only
 
 # Browser / Next.js (public token — safe to expose)
 NEXT_PUBLIC_W24_PUBLIC_TOKEN=wpub_...
-NEXT_PUBLIC_W24_GATEWAY_URL=https://ingest.watcher24.io
+# NEXT_PUBLIC_W24_GATEWAY_URL=http://localhost:8080   # local dev only
 ```

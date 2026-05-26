@@ -27,7 +27,7 @@ class Client:
         app_id: str = "",
         service_name: str = "",
         environment: str = "production",
-        gateway_url: str = "http://localhost:8080",
+        gateway_url: str | None = None,  # None = use production default (https://ingest.watcher24.io)
         flush_interval: float = 0.5,
         flush_at: int = 100,
         max_buffer: int = 10_000,

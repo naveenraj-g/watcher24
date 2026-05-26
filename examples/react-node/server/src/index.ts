@@ -15,7 +15,8 @@ const watcher = createNodeClient({
   // serviceName labels this component in the dashboard — filter by "express-api"
   // to isolate server events from browser events sent by the React client.
   serviceName: "express-api",
-  gatewayUrl: process.env.W24_GATEWAY_URL ?? "http://localhost:8080",
+  // gatewayUrl defaults to https://ingest.watcher24.io — only set for local dev or self-hosted.
+  gatewayUrl: process.env.W24_GATEWAY_URL,
   environment: process.env.NODE_ENV ?? "development",
 });
 

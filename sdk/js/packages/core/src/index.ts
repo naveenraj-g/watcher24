@@ -1,5 +1,6 @@
 // Public surface of @watcher/core.
 // Adapter packages re-export Client and ClientOptions plus their own factory.
+export { DEFAULT_GATEWAY_URL } from "./config.js";
 export { Client } from "./client.js";
 export type { ClientOptions } from "./client.js";
 export type { CaptureOptions, EventInput } from "./domain/event.js";

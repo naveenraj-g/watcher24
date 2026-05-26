@@ -20,6 +20,7 @@ export const watcherClient = createBrowserClient({
   // serviceName labels this component in the dashboard — filter by "react-client"
   // in the console to see browser events separately from the Express server.
   serviceName: "react-client",
-  gatewayUrl: import.meta.env.VITE_W24_GATEWAY_URL ?? "http://localhost:8080",
+  // gatewayUrl defaults to https://ingest.watcher24.io — only set for local dev or self-hosted.
+  gatewayUrl: import.meta.env.VITE_W24_GATEWAY_URL,
   environment: import.meta.env.MODE,
 });

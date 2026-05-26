@@ -6,6 +6,7 @@ import type { ComponentPropsWithoutRef } from "react";
 import Link from "next/link";
 import { CopyButton } from "./CopyButton";
 import { Callout } from "./Callout";
+import { GatewayUrl } from "./GatewayUrl";
 import { PackageTabs } from "./PackageTabs";
 
 function Code({ children, className, ...props }: ComponentPropsWithoutRef<"code">) {
@@ -138,5 +139,6 @@ export const mdxComponents: Record<string, any> = {
   pre: Pre,
   // Custom components available in MDX files
   Callout,
+  GatewayUrl,
   PackageTabs,
 };

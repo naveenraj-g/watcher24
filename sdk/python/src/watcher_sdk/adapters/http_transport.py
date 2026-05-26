@@ -8,6 +8,7 @@ import urllib.error
 import urllib.request
 from dataclasses import asdict
 
+from watcher_sdk._config import DEFAULT_GATEWAY_URL
 from watcher_sdk.domain.event import EventInput
 from watcher_sdk.ports.transport import Transport
 
@@ -15,8 +16,8 @@ _RETRY_DELAYS = [0.1, 0.2, 0.4]  # seconds between retry attempts
 
 
 class HttpTransport(Transport):
-    def __init__(self, gateway_url: str, api_key: str, app_id: str, environment: str, service_name: str = "") -> None:
-        self._url = gateway_url.rstrip("/") + "/v1/events"
+    def __init__(self, gateway_url: str | None, api_key: str, app_id: str, environment: str, service_name: str = "") -> None:
+        self._url = (gateway_url or DEFAULT_GATEWAY_URL).rstrip("/") + "/v1/events"
         headers: dict[str, str] = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {api_key}",
