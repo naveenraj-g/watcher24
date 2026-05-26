@@ -1,7 +1,8 @@
 // Plans comparison — side-by-side Free / Pro / Enterprise feature table with upgrade CTAs.
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { authClient } from "@/lib/auth";
 import { toast } from "sonner";
@@ -101,7 +102,15 @@ function Cell({ value }: { value: FeatureValue }) {
 }
 
 export default function PlansPage() {
-  const [billing, setBilling] = useState<BillingPeriod>("monthly");
+  const searchParams = useSearchParams();
+  const [billing, setBilling] = useState<BillingPeriod>(
+    searchParams.get("billing") === "yearly" ? "yearly" : "monthly"
+  );
+
+  // Sync if the URL param changes (e.g. back/forward navigation)
+  useEffect(() => {
+    if (searchParams.get("billing") === "yearly") setBilling("yearly");
+  }, [searchParams]);
 
   const { data: subData, isLoading } = useQuery({
     queryKey: ["subscription"],

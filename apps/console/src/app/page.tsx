@@ -8,9 +8,7 @@ import {
   Zap,
   GitBranch,
   BarChart2,
-  FileText,
   ArrowRight,
-  CheckCircle2,
   Terminal,
   Globe,
   Lock,
@@ -18,6 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { HomeNav } from "@/components/marketing/HomeNav";
+import { PricingSection } from "@/components/marketing/PricingSection";
 import { getServerSession } from "@/lib/auth-server";
 
 export default async function HomePage() {
@@ -206,78 +205,7 @@ export default async function HomePage() {
       </section>
 
       {/* ── Pricing ──────────────────────────────────────────────── */}
-      <section id="pricing" className="py-24 px-4 sm:px-6">
-        <div className="mx-auto max-w-5xl">
-          <div className="text-center mb-16">
-            <Badge variant="outline" className="mb-4">Pricing</Badge>
-            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight mb-4">
-              Simple, transparent pricing
-            </h2>
-            <p className="text-muted-foreground max-w-xl mx-auto">
-              Start free. Scale when you need to. No surprise bills.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
-            {PLANS.map((plan) => (
-              <div
-                key={plan.name}
-                className={`relative rounded-xl border p-6 flex flex-col ${
-                  plan.highlighted
-                    ? "border-primary shadow-lg shadow-primary/10 bg-primary/5"
-                    : "bg-card"
-                }`}
-              >
-                {plan.highlighted && (
-                  <Badge className="absolute -top-3 left-1/2 -translate-x-1/2">
-                    Most popular
-                  </Badge>
-                )}
-                <div className="mb-6">
-                  <h3 className="font-semibold text-lg mb-1">{plan.name}</h3>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    {plan.description}
-                  </p>
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-3xl font-bold">{plan.price}</span>
-                    {plan.per && (
-                      <span className="text-sm text-muted-foreground">
-                        {plan.per}
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                <ul className="space-y-2.5 mb-8 flex-1">
-                  {plan.features.map((f) => (
-                    <li key={f} className="flex items-start gap-2 text-sm">
-                      <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 shrink-0" />
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-
-                <Button
-                  asChild
-                  variant={plan.highlighted ? "default" : "outline"}
-                  className="w-full"
-                >
-                  <Link href={isAuthenticated ? "/settings/billing/plans" : "/login"}>
-                    {plan.cta}
-                  </Link>
-                </Button>
-              </div>
-            ))}
-          </div>
-
-          <p className="mt-8 text-center text-sm text-muted-foreground">
-            All plans include SSO, audit logs, and 99.9% uptime SLA.{" "}
-            <Link href="/docs" className="underline underline-offset-4 hover:text-foreground">
-              Compare all features →
-            </Link>
-          </p>
-        </div>
-      </section>
+      <PricingSection isAuthenticated={isAuthenticated} />
 
       {/* ── CTA banner ───────────────────────────────────────────── */}
       <section className="py-24 px-4 sm:px-6 bg-primary text-primary-foreground">
@@ -414,56 +342,6 @@ const STEPS = [
   },
 ];
 
-const PLANS = [
-  {
-    name: "Free",
-    description: "Perfect for side projects and experimentation.",
-    price: "$0",
-    per: "/ month",
-    highlighted: false,
-    cta: "Get started",
-    features: [
-      "Up to 100k events / month",
-      "7-day log retention",
-      "1 organisation",
-      "Community support",
-      "JavaScript & Python SDKs",
-    ],
-  },
-  {
-    name: "Pro",
-    description: "For growing teams shipping production software.",
-    price: "$29",
-    per: "/ month",
-    highlighted: true,
-    cta: "Start Pro trial",
-    features: [
-      "Up to 10M events / month",
-      "90-day log retention",
-      "Unlimited organisations",
-      "Priority email support",
-      "All SDKs + OpenTelemetry",
-      "Custom dashboards",
-      "Audit log exports",
-    ],
-  },
-  {
-    name: "Enterprise",
-    description: "Dedicated infrastructure and SLA guarantees.",
-    price: "Custom",
-    per: undefined,
-    highlighted: false,
-    cta: "Contact us",
-    features: [
-      "Unlimited events",
-      "Custom retention policy",
-      "SSO / SAML",
-      "Dedicated support SLA",
-      "On-prem deployment option",
-      "Security review & MSA",
-    ],
-  },
-];
 
 const FOOTER_LINKS = [
   {
