@@ -1,0 +1,132 @@
+# IAM — Internal API Reference
+
+Internal endpoints are called **server-to-server only** (console → IAM, gateway → IAM).
+They are never exposed to end-users or browsers.
+
+## Authentication
+
+All internal endpoints require the `x-internal-secret` header:
+
+```
+x-internal-secret: <INTERNAL_API_SECRET env var>
+```
+
+If the secret is missing or wrong, the endpoint returns `401 Unauthorized`.
+
+When `INTERNAL_API_SECRET` is not set (local dev shortcut), the check is skipped.
+**Never run without a secret in staging or production.**
+
+---
+
+## Public Token Management
+
+Public tokens (`wpub_` prefix) are browser-safe API keys with origin allowlists and
+per-minute rate limits. They are created by the console on behalf of the authenticated
+user's active organisation and validated by the gateway on each inbound request.
+
+The raw token is returned **once on creation** and never stored — only the SHA-256
+hash is persisted (same scheme as better-auth secret keys).
+
+### GET /api/internal/public-tokens?orgId=xxx
+
+List all public tokens for an organisation. Never returns the raw token value.
+
+**Query parameters:**
+
+| Param | Required | Description |
+|-------|----------|-------------|
+| `orgId` | Yes | Organisation ID (`organization.id`) |
+
+**Response (200):**
+
+```json
+{
+  "tokens": [
+    {
+      "id": "abc123",
+      "name": "my-app-browser",
+      "start": "wpub_xy",
+      "enabled": true,
+      "allowedOrigins": ["https://myapp.com"],
+      "minuteRateLimit": 1000,
+      "createdAt": "2026-05-27T10:00:00Z",
+      "lastRequest": null
+    }
+  ]
+}
+```
+
+---
+
+### POST /api/internal/public-tokens
+
+Create a new public token for an organisation.
+
+**Request body:**
+
+```json
+{
+  "orgId": "org_...",
+  "name": "my-app-browser",
+  "allowedOrigins": ["https://myapp.com", "https://staging.myapp.com"],
+  "minuteRateLimit": 1000
+}
+```
+
+| Field | Required | Constraints |
+|-------|----------|-------------|
+| `orgId` | Yes | Must match an existing organisation |
+| `name` | Yes | Non-empty string |
+| `allowedOrigins` | Yes | Non-empty array, max 10 entries. Each must start with `https://` or `http://localhost` |
+| `minuteRateLimit` | No | Positive integer, max 10 000. Defaults to 1 000 |
+
+**Response (201):**
+
+```json
+{
+  "token": "wpub_<base64url-random>",
+  "id": "abc123",
+  "name": "my-app-browser",
+  "start": "wpub_xy",
+  "allowedOrigins": ["https://myapp.com"],
+  "minuteRateLimit": 1000,
+  "createdAt": "2026-05-27T10:00:00Z"
+}
+```
+
+The `token` field is the raw key — it appears **only in this response**. The caller must
+present it to the user immediately; it cannot be retrieved again.
+
+**Error responses:**
+
+| Status | Meaning |
+|--------|---------|
+| 400 | `orgId`, `name`, or `allowedOrigins` missing or invalid |
+| 404 | Organisation not found |
+
+---
+
+### DELETE /api/internal/public-tokens?id=xxx
+
+Revoke (permanently delete) a public token by its DB id.
+
+**Query parameters:**
+
+| Param | Required | Description |
+|-------|----------|-------------|
+| `id` | Yes | Token DB id (`apikey.id`) |
+
+The endpoint verifies `keyType = "public"` before deleting. It will not delete secret API keys.
+
+**Response (200):**
+
+```json
+{ "ok": true }
+```
+
+**Error responses:**
+
+| Status | Meaning |
+|--------|---------|
+| 400 | `id` query param missing |
+| 404 | Token not found or is not a public token |

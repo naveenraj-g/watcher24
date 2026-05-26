@@ -16,6 +16,7 @@ Copy `.env.example` to `.env` and fill in values before running.
 | `CLICKHOUSE_DB`           | Yes      | `watcher`                     | ClickHouse database name                                                |
 | `NEXT_PUBLIC_REALTIME_URL`| No       | `ws://localhost:8081`         | WebSocket URL of the realtime-go service — used by the live feed        |
 | `IAM_URL`                 | Yes      | `http://localhost:5000`       | Internal URL of the IAM service — used for server-side app/key management API calls |
+| `INTERNAL_API_SECRET`     | Yes      | —                             | Shared secret for IAM's `/api/internal/*` endpoints. **Must match `INTERNAL_API_SECRET` in IAM.** Used by the console's `/api/public-tokens` proxy. |
 
 ## IAM service connection
 

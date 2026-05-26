@@ -133,3 +133,66 @@ Request body:
 ```json
 { "keyId": "key_..." }
 ```
+
+## Public token routes
+
+Public tokens (`wpub_` prefix) are browser-safe keys with origin allowlists and per-minute
+rate limits. These routes proxy to IAM's `/api/internal/public-tokens` — IAM owns the token
+records and the only place they are stored.
+
+All routes require an authenticated session with an active organisation.
+
+### GET /api/public-tokens
+
+List all public tokens for the session's active org. Never returns the raw token value.
+
+```json
+{
+  "tokens": [
+    {
+      "id": "abc123",
+      "name": "my-app-browser",
+      "start": "wpub_xy",
+      "enabled": true,
+      "allowedOrigins": ["https://myapp.com"],
+      "minuteRateLimit": 1000,
+      "createdAt": "2026-05-27T10:00:00Z",
+      "lastRequest": null
+    }
+  ]
+}
+```
+
+### POST /api/public-tokens
+
+Create a public token. Returns the raw token **once** — it is never stored and never retrievable again.
+
+Request body:
+```json
+{
+  "name": "my-app-browser",
+  "allowedOrigins": ["https://myapp.com", "https://staging.myapp.com"],
+  "minuteRateLimit": 1000
+}
+```
+
+`allowedOrigins` must be a non-empty array (max 10). Each origin must start with `https://` or `http://localhost`.
+`minuteRateLimit` is optional; defaults to 1 000, capped at 10 000.
+
+Response (201):
+```json
+{
+  "token": "wpub_...",
+  "id": "abc123",
+  "name": "my-app-browser",
+  "start": "wpub_xy",
+  "allowedOrigins": ["https://myapp.com"],
+  "minuteRateLimit": 1000,
+  "createdAt": "2026-05-27T10:00:00Z"
+}
+```
+
+### DELETE /api/public-tokens?id=xxx
+
+Revoke a public token by its DB id. Only tokens belonging to the session's active org can be revoked.
+The route verifies ownership before forwarding to IAM so one org cannot revoke another org's tokens.

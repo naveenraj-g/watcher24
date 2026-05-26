@@ -19,6 +19,19 @@ X-API-Key: wtch_your_api_key_here
 API keys are issued by the IAM service and scoped to an organization.
 The gateway resolves `organization_id` from the key — you do not send it in the body.
 
+### Key types
+
+| Type | Prefix | Who uses it | Extra enforcement |
+|------|--------|-------------|-------------------|
+| Secret key | `wt_` | Server-side SDKs (Node.js, Python, Go) | Monthly plan quota only |
+| Public token | `wpub_` | Browser SDKs (`@watcher/browser`, `@watcher/react`) | Origin allowlist + per-minute rate limit |
+
+**Public token rules enforced by the gateway:**
+
+1. **Origin allowlist** — the `Origin` header must be in the token's `allowedOrigins` list. Requests with a missing or unlisted origin are rejected with `403 ORIGIN_NOT_ALLOWED`. This prevents a leaked token from being used from any domain the owner did not explicitly allow.
+2. **Per-minute rate limit** — default 1 000 events/min, configurable up to 10 000. Exceeding the cap returns `429 RATE_LIMIT_EXCEEDED`. Implemented with Redis INCR+EXPIRE per minute window.
+3. **Source tagging** — events from public tokens are automatically tagged `"source": "browser"`. Events from secret keys are tagged `"source": "server"`. This is set by the gateway and cannot be overridden by the client.
+
 ---
 
 ## Endpoints
@@ -132,8 +145,10 @@ All errors follow this shape:
 | 400 | `INVALID_PAYLOAD` | Body is not valid JSON or missing required fields |
 | 401 | `MISSING_API_KEY` | No API key provided |
 | 401 | `INVALID_API_KEY` | Key not found, disabled, or expired |
+| 403 | `ORIGIN_NOT_ALLOWED` | Public token: `Origin` header is missing or not in the token's allowlist |
 | 413 | `BATCH_TOO_LARGE` | More than 500 events in one request |
-| 429 | `RATE_LIMITED` | Too many requests for this org |
+| 429 | `EVENT_LIMIT_EXCEEDED` | Org has reached their monthly event quota |
+| 429 | `RATE_LIMIT_EXCEEDED` | Public token: per-minute rate cap exceeded |
 | 500 | `INTERNAL_ERROR` | Gateway or queue failure |
 
 ---
@@ -147,6 +162,7 @@ You do not send these — they are set server-side:
 |-------|-------|
 | `organization_id` | Resolved from API key |
 | `ingested_at` | Server UTC timestamp at ingestion time |
+| `source` | `"browser"` for public tokens, `"server"` for secret keys — set by gateway, not from request |
 | `ip_address` | Client IP from request |
 | `sdk_version` | From `X-SDK-Version` header (optional) |
 | `runtime` | From `X-Runtime` header (optional) |

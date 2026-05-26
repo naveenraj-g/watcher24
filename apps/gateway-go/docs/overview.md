@@ -22,13 +22,14 @@ Go was chosen for the gateway because:
 
 ## Responsibility
 
-The gateway does exactly **four things** in order:
+The gateway does exactly **five things** in order:
 
 ```
-1. Authenticate   — Is this API key valid? Which org does it belong to?
-2. Validate       — Is the event payload well-formed?
-3. Enrich         — Add metadata the SDK cannot know (IP, ingestion timestamp, region)
-4. Publish        — Write the event to the correct Redis Stream topic
+1. Authenticate   — Is this API key valid? Which org does it belong to? What type is it?
+2. Enforce        — Public tokens: is the Origin allowed? Is the per-minute rate cap reached?
+3. Validate       — Is the event payload well-formed?
+4. Enrich         — Add metadata the SDK cannot know (IP, ingestion timestamp, region, source)
+5. Publish        — Write the event to the correct Redis Stream topic
 ```
 
 It does **not**:
@@ -73,11 +74,16 @@ Auth middleware extracts API key from Authorization header
   ↓
 KeyValidator queries IAM database (postgres:5433/iam)
   checks: key hash matches, enabled=true, not expired
-  returns: organization_id, application_id
+  returns: organization_id, application_id, keyType, allowedOrigins, minuteRateLimit
+  ↓
+Public token enforcement (if keyType = "public")
+  - Origin header must be in allowedOrigins → 403 if not
+  - Redis INCR per minute window must be within minuteRateLimit → 429 if not
   ↓
 Handler parses and validates the JSON body
   ↓
 Enricher adds: ingested_at, ip_address, sdk_version, region
+             source = "browser" (public token) | "server" (secret key)
   ↓
 Publisher maps event_type → Redis Stream topic
   XADD stream:audit / stream:logs / stream:traces / stream:metrics ...

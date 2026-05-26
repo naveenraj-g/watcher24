@@ -268,7 +268,33 @@ Only tables that are NOT owned by IAM — e.g., `applications` (the Watcher24-sp
 
 ---
 
-### 10. Git
+### 10. Keep Internal Docs in Sync (mandatory)
+
+Every time you add a feature, change an API, or modify behaviour in any app, you **must** read
+and update the relevant internal documentation before committing.
+
+**Docs to check on every change:**
+
+| Change type | Docs to update |
+|-------------|---------------|
+| New or changed API endpoint | `apps/<app>/docs/api.md` |
+| New env variable | `apps/<app>/docs/configuration.md` + `apps/<app>/.env.example` |
+| Architecture change (new port, adapter, layer) | `apps/<app>/docs/architecture.md` |
+| Changed system overview / event flow | `apps/<app>/docs/overview.md` |
+| New IAM internal endpoint | `apps/iam/docs/api.md` (mandatory per Rule 9) |
+| Console UI feature visible to users | `apps/console/docs/api.md` (if a new route was added) |
+
+**Example apps and SDK docs:**
+- If you change how the SDK is used (method signatures, env vars, package names), also update
+  the relevant MDX pages in `apps/console/src/content/docs/` and `apps/console/src/content/docs/sdks/`.
+- If the gateway's accepted request shape changes, check `apps/console/src/content/docs/api/ingestion.mdx`.
+
+**The rule in one sentence:**  
+_A feature is not done until the docs reflect it. If you added it to the code, add it to the docs._
+
+---
+
+### 11. Git
 
 - All MVP work goes on the `mvp` branch
 - Commit message format: `feat:`, `fix:`, `refactor:`, `test:`, `docs:`

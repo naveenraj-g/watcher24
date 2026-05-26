@@ -44,6 +44,8 @@ Interfaces that define **what** the use cases need, without caring **how** it is
 |------|-----------|---------|
 | `publisher.go` | `EventPublisher` | Publishes an event to a queue |
 | `keyvalidator.go` | `KeyValidator` | Validates an API key and returns its org context |
+| `ratelimiter.go` | `MinuteRateLimiter` | Enforces per-minute event caps for public tokens |
+| `limitchecker.go` | `LimitChecker` | Counts monthly events for org quota enforcement |
 
 Use cases depend on these interfaces. Adapters implement them.
 This is what makes the system testable — you can swap Redis for an in-memory publisher in tests.
@@ -72,8 +74,10 @@ Concrete implementations of the port interfaces.
 
 | Package | Implements | Technology |
 |---------|-----------|-----------|
-| `adapters/redis` | `EventPublisher` | Redis Streams via `go-redis/v9` |
-| `adapters/postgres` | `KeyValidator` | IAM database via `pgx/v5` |
+| `adapters/redis/publisher.go` | `EventPublisher` | Redis Streams (XADD) via `go-redis/v9` |
+| `adapters/redis/ratelimiter.go` | `MinuteRateLimiter` | Redis INCR+EXPIRE per minute window |
+| `adapters/postgres/keyvalidator.go` | `KeyValidator` | IAM database via `pgx/v5` |
+| `adapters/clickhouse/limitchecker.go` | `LimitChecker` | ClickHouse monthly event count query |
 
 Each adapter:
 - Implements exactly one port interface
@@ -132,12 +136,14 @@ Listen on :8080
 ```
 main.go
   ├── config
-  ├── adapters/postgres  →  ports.KeyValidator
-  ├── adapters/redis     →  ports.EventPublisher
-  ├── usecases           →  ports.KeyValidator + ports.EventPublisher
+  ├── adapters/postgres          →  ports.KeyValidator
+  ├── adapters/redis/publisher   →  ports.EventPublisher
+  ├── adapters/redis/ratelimiter →  ports.MinuteRateLimiter
+  ├── adapters/clickhouse        →  ports.LimitChecker
+  ├── usecases                   →  ports.EventPublisher + ports.LimitChecker
   └── transport
         ├── middleware   →  ports.KeyValidator
-        └── handlers     →  usecases
+        └── handlers     →  usecases + ports.MinuteRateLimiter
 ```
 
 No arrow ever points inward toward domain or ports from an outer layer — except through the interface.
