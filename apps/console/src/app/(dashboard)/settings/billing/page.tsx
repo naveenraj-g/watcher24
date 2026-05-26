@@ -14,12 +14,14 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import Link from "next/link";
 import {
   CreditCard,
   Zap,
   ArrowUpRight,
   ExternalLink,
   AlertTriangle,
+  LayoutGrid,
 } from "lucide-react";
 
 type Subscription = {
@@ -191,6 +193,12 @@ export default function BillingPage() {
                 Upgrade to Pro
               </Button>
             )}
+            <Button size="sm" variant="outline" asChild>
+              <Link href="/settings/billing/plans">
+                <LayoutGrid className="mr-1.5 h-3.5 w-3.5" />
+                Compare plans
+              </Link>
+            </Button>
             {isPaid && !subData?.cancelAtPeriodEnd && (
               <Button size="sm" variant="outline" onClick={handlePortal}>
                 <ExternalLink className="mr-1.5 h-3.5 w-3.5" />
@@ -301,10 +309,16 @@ export default function BillingPage() {
               Pro gives you 5M events/month, 90-day retention, and 20 team members.
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex flex-wrap gap-2">
             <Button onClick={() => handleUpgrade("pro")}>
               <ArrowUpRight className="mr-1.5 h-4 w-4" />
               Upgrade to Pro — $29/month
+            </Button>
+            <Button variant="ghost" asChild>
+              <Link href="/settings/billing/plans">
+                <LayoutGrid className="mr-1.5 h-4 w-4" />
+                Compare all plans
+              </Link>
             </Button>
           </CardContent>
         </Card>
