@@ -35,6 +35,8 @@ const SEVERITY_OPTIONS = [
   "critical",
 ] as const;
 
+const SOURCE_OPTIONS = ["all", "browser", "server"] as const;
+
 interface EventsExplorerProps {
   orgId: string;
   eventType: string;
@@ -51,12 +53,13 @@ export function EventsExplorer({
 }: EventsExplorerProps) {
   const [search, setSearch]               = useState("");
   const [severity, setSeverity]           = useState("all");
+  const [source, setSource]               = useState("all");
   const [page, setPage]                   = useState(0);
   const [selectedEvent, setSelectedEvent] = useState<EventRow | null>(null);
   const PAGE_SIZE = 50;
 
   const { data, isFetching, refetch } = useQuery<EventRow[]>({
-    queryKey: [apiPath, orgId, eventType, appId, search, severity, page],
+    queryKey: [apiPath, orgId, eventType, appId, search, severity, source, page],
     queryFn: async () => {
       const params = new URLSearchParams({
         orgId,
@@ -66,6 +69,7 @@ export function EventsExplorer({
       if (appId) params.set("appId", appId);
       if (search) params.set("search", search);
       if (severity !== "all") params.set("severity", severity);
+      if (source !== "all") params.set("source", source);
       const res = await fetch(`${apiPath}?${params}`);
       if (!res.ok) throw new Error("Failed to fetch events");
       return res.json();
@@ -105,6 +109,26 @@ export function EventsExplorer({
           {getValue<string>()}
         </span>
       ),
+    },
+    {
+      accessorKey: "source",
+      header: "Source",
+      cell: ({ getValue }) => {
+        const s = getValue<string>();
+        if (!s) return <span className="text-xs text-muted-foreground">—</span>;
+        return (
+          <Badge
+            variant="outline"
+            className={`text-[10px] uppercase ${
+              s === "browser"
+                ? "border-blue-300 text-blue-700 bg-blue-50 dark:border-blue-700 dark:text-blue-300 dark:bg-blue-950/30"
+                : "border-slate-300 text-slate-600 bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:bg-slate-900/30"
+            }`}
+          >
+            {s}
+          </Badge>
+        );
+      },
     },
     {
       accessorKey: "application_id",
@@ -191,6 +215,24 @@ export function EventsExplorer({
               {SEVERITY_OPTIONS.map((s) => (
                 <SelectItem key={s} value={s}>
                   {s === "all" ? "All severities" : s}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select
+            value={source}
+            onValueChange={(v) => {
+              setSource(v);
+              setPage(0);
+            }}
+          >
+            <SelectTrigger className="w-32 h-9">
+              <SelectValue placeholder="Source" />
+            </SelectTrigger>
+            <SelectContent>
+              {SOURCE_OPTIONS.map((s) => (
+                <SelectItem key={s} value={s}>
+                  {s === "all" ? "All sources" : s}
                 </SelectItem>
               ))}
             </SelectContent>

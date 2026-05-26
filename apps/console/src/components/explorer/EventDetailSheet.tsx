@@ -170,6 +170,7 @@ export function EventDetailSheet({
             <Section title="Application">
               <FieldRow label="App ID"      value={event.application_id} mono copy />
               <FieldRow label="Environment" value={event.environment} />
+              <FieldRow label="Source"      value={event.source || undefined} />
               <FieldRow label="SDK Version" value={event.sdk_version} mono />
               <FieldRow label="Runtime"     value={event.runtime} mono />
             </Section>

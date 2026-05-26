@@ -22,6 +22,7 @@ export async function GET(req: NextRequest) {
     eventType: "metric",
     search: sp.get("search") ?? undefined,
     severity: sp.get("severity") ?? undefined,
+    source: sp.get("source") ?? undefined,
     limit: Number(sp.get("limit") ?? 50),
     offset: Number(sp.get("offset") ?? 0),
   });

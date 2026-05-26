@@ -39,6 +39,11 @@ export interface EventRow {
   event_type: string;
   severity: string;
   message: string;
+  // source distinguishes where the event came from:
+  // "browser" = public token via @watcher/browser or @watcher/react
+  // "server"  = secret key via @watcher/node, Python, or Go SDK
+  // ""        = legacy events ingested before source tagging was added
+  source: string;
   timestamp: string;
   trace_id: string;
   span_id: string;
@@ -176,6 +181,7 @@ export async function queryEvents(opts: {
   appId?: string;
   eventType?: string;
   severity?: string;
+  source?: string;
   search?: string;
   limit?: number;
   offset?: number;
@@ -187,6 +193,7 @@ export async function queryEvents(opts: {
     appId,
     eventType,
     severity,
+    source,
     search,
     limit = 50,
     offset = 0,
@@ -201,6 +208,7 @@ export async function queryEvents(opts: {
   if (appId) conditions.push("application_id = {appId: String}");
   if (eventType) conditions.push("event_type = {eventType: String}");
   if (severity) conditions.push("severity = {severity: String}");
+  if (source) conditions.push("source = {source: String}");
   if (search) conditions.push("message ILIKE {search: String}");
   if (from) conditions.push("timestamp >= {from: DateTime64(3)}");
   if (to) conditions.push("timestamp <= {to: DateTime64(3)}");
@@ -219,6 +227,7 @@ export async function queryEvents(opts: {
       appId: appId ?? "",
       eventType: eventType ?? "",
       severity: severity ?? "",
+      source: source ?? "",
       search: search ? `%${search}%` : "",
       limit,
       offset,
