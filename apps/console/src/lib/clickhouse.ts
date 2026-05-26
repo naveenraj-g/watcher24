@@ -214,7 +214,7 @@ export async function queryEvents(opts: {
   if (eventType) conditions.push("event_type = {eventType: String}");
   if (severity) conditions.push("severity = {severity: String}");
   if (source) conditions.push("source = {source: String}");
-  if (serviceName) conditions.push("service_name = {serviceName: String}");
+  if (serviceName) conditions.push("service_name ILIKE {serviceName: String}");
   if (search) conditions.push("message ILIKE {search: String}");
   if (from) conditions.push("timestamp >= {from: DateTime64(3)}");
   if (to) conditions.push("timestamp <= {to: DateTime64(3)}");
@@ -234,7 +234,7 @@ export async function queryEvents(opts: {
       eventType: eventType ?? "",
       severity: severity ?? "",
       source: source ?? "",
-      serviceName: serviceName ?? "",
+      serviceName: serviceName ? `%${serviceName}%` : "",
       search: search ? `%${search}%` : "",
       limit,
       offset,
