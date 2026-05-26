@@ -15,7 +15,7 @@ _RETRY_DELAYS = [0.1, 0.2, 0.4]  # seconds between retry attempts
 
 
 class HttpTransport(Transport):
-    def __init__(self, gateway_url: str, api_key: str, app_id: str, environment: str) -> None:
+    def __init__(self, gateway_url: str, api_key: str, app_id: str, environment: str, service_name: str = "") -> None:
         self._url = gateway_url.rstrip("/") + "/v1/events"
         headers: dict[str, str] = {
             "Content-Type": "application/json",
@@ -28,6 +28,9 @@ class HttpTransport(Transport):
         # tokens (wpub_) don't need it; the gateway resolves the application from the key.
         if app_id:
             headers["X-App-ID"] = app_id
+        # Only send X-Service-Name when the developer has set one.
+        if service_name:
+            headers["X-Service-Name"] = service_name
         self._headers = headers
 
     def send(self, events: list[EventInput]) -> None:

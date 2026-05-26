@@ -16,6 +16,7 @@ export function createBrowserClient(options: ClientOptions): Client {
     options.apiKey,
     options.appId,
     options.environment ?? "production",
+    options.serviceName,
   );
   const client = new Client(transport, options);
   registerBeaconFlusher(client, transport);

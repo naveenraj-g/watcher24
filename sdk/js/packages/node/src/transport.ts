@@ -19,6 +19,9 @@ export class NodeTransport implements Transport {
     // the gateway resolves the application from the key itself.
     appId: string | undefined,
     environment: string,
+    // serviceName is the developer-set component label (e.g. "auth-worker").
+    // Sent as X-Service-Name header when provided.
+    serviceName?: string,
   ) {
     this.url = new URL("/v1/events", gatewayUrl);
     this.headers = {
@@ -29,6 +32,7 @@ export class NodeTransport implements Transport {
       "x-runtime": `node/${process.version}`,
       // Only send x-app-id when explicitly provided.
       ...(appId ? { "x-app-id": appId } : {}),
+      ...(serviceName ? { "x-service-name": serviceName } : {}),
     };
   }
 

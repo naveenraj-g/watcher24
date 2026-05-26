@@ -14,6 +14,9 @@ _app_id = os.environ.get("W24_APP_ID") or None
 client = Client(
     api_key=os.environ.get("W24_API_KEY", ""),
     app_id=_app_id,
+    # service_name labels this component in the dashboard — filter by "fastapi-example"
+    # to isolate these server events from other services in the same app.
+    service_name=os.environ.get("W24_SERVICE_NAME", "fastapi-example"),
     gateway_url=os.environ.get("W24_GATEWAY_URL", "http://localhost:8080"),
     environment=os.environ.get("W24_ENVIRONMENT", "development"),
 )

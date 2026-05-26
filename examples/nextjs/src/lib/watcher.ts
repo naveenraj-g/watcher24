@@ -23,6 +23,9 @@ export const watcher =
     // appId is optional when using an app-scoped key — the gateway resolves it.
     // Only set this if your key is an org-level key (no app linked in the console).
     ...(process.env.W24_APP_ID ? { appId: process.env.W24_APP_ID } : {}),
+    // serviceName labels this component in the dashboard so you can filter by service.
+    // Change this to reflect what this Next.js instance is (e.g. "marketing-site", "dashboard-api").
+    serviceName: "nextjs-example",
     gatewayUrl: process.env.W24_GATEWAY_URL ?? "http://localhost:8080",
     environment: process.env.NODE_ENV ?? "development",
   }));

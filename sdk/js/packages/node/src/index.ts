@@ -15,6 +15,7 @@ export function createNodeClient(options: ClientOptions): Client {
     options.apiKey,
     options.appId,
     options.environment ?? "production",
+    options.serviceName,
   );
   return new Client(transport, options);
 }

@@ -54,12 +54,13 @@ export function EventsExplorer({
   const [search, setSearch]               = useState("");
   const [severity, setSeverity]           = useState("all");
   const [source, setSource]               = useState("all");
+  const [serviceName, setServiceName]     = useState("");
   const [page, setPage]                   = useState(0);
   const [selectedEvent, setSelectedEvent] = useState<EventRow | null>(null);
   const PAGE_SIZE = 50;
 
   const { data, isFetching, refetch } = useQuery<EventRow[]>({
-    queryKey: [apiPath, orgId, eventType, appId, search, severity, source, page],
+    queryKey: [apiPath, orgId, eventType, appId, search, severity, source, serviceName, page],
     queryFn: async () => {
       const params = new URLSearchParams({
         orgId,
@@ -70,6 +71,7 @@ export function EventsExplorer({
       if (search) params.set("search", search);
       if (severity !== "all") params.set("severity", severity);
       if (source !== "all") params.set("source", source);
+      if (serviceName) params.set("serviceName", serviceName);
       const res = await fetch(`${apiPath}?${params}`);
       if (!res.ok) throw new Error("Failed to fetch events");
       return res.json();
@@ -125,6 +127,19 @@ export function EventsExplorer({
                 : "border-slate-300 text-slate-600 bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:bg-slate-900/30"
             }`}
           >
+            {s}
+          </Badge>
+        );
+      },
+    },
+    {
+      accessorKey: "service_name",
+      header: "Service",
+      cell: ({ getValue }) => {
+        const s = getValue<string>();
+        if (!s) return <span className="text-xs text-muted-foreground">—</span>;
+        return (
+          <Badge variant="outline" className="text-[10px] font-mono">
             {s}
           </Badge>
         );
@@ -237,6 +252,15 @@ export function EventsExplorer({
               ))}
             </SelectContent>
           </Select>
+          <Input
+            placeholder="Service name…"
+            value={serviceName}
+            onChange={(e) => {
+              setServiceName(e.target.value);
+              setPage(0);
+            }}
+            className="w-40 h-9"
+          />
           <Button
             variant="outline"
             size="sm"

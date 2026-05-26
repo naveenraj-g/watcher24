@@ -32,6 +32,7 @@ _COLUMNS = [
     "severity",
     "message",
     "source",
+    "service_name",
     "timestamp",
     "trace_id",
     "span_id",

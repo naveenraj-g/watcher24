@@ -12,6 +12,9 @@ const watcher = createNodeClient({
   apiKey: process.env.W24_API_KEY ?? "",
   // appId is optional when using an app-scoped key — the gateway resolves it.
   ...(process.env.W24_APP_ID ? { appId: process.env.W24_APP_ID } : {}),
+  // serviceName labels this component in the dashboard — filter by "express-api"
+  // to isolate server events from browser events sent by the React client.
+  serviceName: "express-api",
   gatewayUrl: process.env.W24_GATEWAY_URL ?? "http://localhost:8080",
   environment: process.env.NODE_ENV ?? "development",
 });

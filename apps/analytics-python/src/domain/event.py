@@ -73,6 +73,11 @@ class Event(BaseModel):
     # ""       = legacy events ingested before source tagging was introduced.
     source: str = ""
 
+    # ServiceName is an optional developer-set label for the sending component.
+    # Set at SDK init time (e.g. "payment-api", "ai-agent", "mobile-ios").
+    # Sent as X-Service-Name header — stored verbatim, never validated.
+    service_name: str = ""
+
     # Timestamps — both always present, ingested_at is server-set by gateway
     timestamp: datetime
     ingested_at: datetime
@@ -133,6 +138,7 @@ class Event(BaseModel):
             self.severity.value,
             self.message,
             self.source,
+            self.service_name,
             self.timestamp,
             self.trace_id,
             self.span_id,

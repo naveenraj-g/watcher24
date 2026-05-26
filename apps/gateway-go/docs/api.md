@@ -30,7 +30,7 @@ The gateway resolves `organization_id` from the key — you do not send it in th
 
 1. **Origin allowlist** — the `Origin` header must be in the token's `allowedOrigins` list. Requests with a missing or unlisted origin are rejected with `403 ORIGIN_NOT_ALLOWED`. This prevents a leaked token from being used from any domain the owner did not explicitly allow.
 2. **Per-minute rate limit** — default 1 000 events/min, configurable up to 10 000. Exceeding the cap returns `429 RATE_LIMIT_EXCEEDED`. Implemented with Redis INCR+EXPIRE per minute window.
-3. **Source tagging** — events from public tokens are automatically tagged `"source": "browser"`. Events from secret keys are tagged `"source": "server"`. This is set by the gateway and cannot be overridden by the client.
+3. **Source tagging** — events from public tokens are automatically tagged `"source": "client"`. Events from secret keys are tagged `"source": "server"`. This is set by the gateway and cannot be overridden by the client.
 
 ---
 
@@ -162,7 +162,8 @@ You do not send these — they are set server-side:
 |-------|-------|
 | `organization_id` | Resolved from API key |
 | `ingested_at` | Server UTC timestamp at ingestion time |
-| `source` | `"browser"` for public tokens, `"server"` for secret keys — set by gateway, not from request |
+| `source` | `"client"` for public tokens, `"server"` for secret keys — set by gateway, not from request |
+| `service_name` | From `X-Service-Name` header — developer-set component label (e.g. "payment-api", "ai-agent") |
 | `ip_address` | Client IP from request |
 | `sdk_version` | From `X-SDK-Version` header (optional) |
 | `runtime` | From `X-Runtime` header (optional) |

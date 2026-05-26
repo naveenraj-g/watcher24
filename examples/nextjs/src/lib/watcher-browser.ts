@@ -17,6 +17,9 @@ import { createBrowserClient } from "@watcher/browser";
 export const watcherBrowserClient = createBrowserClient({
   // NEXT_PUBLIC_W24_PUBLIC_TOKEN must start with wpub_ — created in Settings → API Keys.
   apiKey: process.env.NEXT_PUBLIC_W24_PUBLIC_TOKEN ?? "",
+  // serviceName labels this component in the dashboard — "nextjs-browser" lets you
+  // distinguish frontend events from server-side events for the same app.
+  serviceName: "nextjs-browser",
   gatewayUrl: process.env.NEXT_PUBLIC_W24_GATEWAY_URL ?? "http://localhost:8080",
   environment: process.env.NODE_ENV ?? "development",
 });

@@ -29,6 +29,7 @@ export async function GET(req: NextRequest) {
     search: sp.get("search") ?? undefined,
     severity: sp.get("severity") ?? undefined,
     source: sp.get("source") ?? undefined,
+    serviceName: sp.get("serviceName") ?? undefined,
     limit: Number(sp.get("limit") ?? 50),
     offset: Number(sp.get("offset") ?? 0),
   });

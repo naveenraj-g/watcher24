@@ -21,6 +21,7 @@ client = Client(
     # app_id is optional: only set if using a legacy org-level key with no app linked.
     # App-scoped keys (the default) resolve the app automatically at the gateway.
     # app_id="billing-api",
+    service_name="payment-api",   # optional — component label shown in the dashboard
     environment="production",     # optional — default: "production"
     gateway_url="http://...",     # optional — default: "http://localhost:8080"
     flush_interval=0.5,           # optional — seconds between auto-flushes (default: 0.5)
@@ -31,7 +32,8 @@ client = Client(
 
 Events sent with a server-side key are tagged `source: "server"` by the gateway.
 If the same application also has a browser SDK with a `wpub_` public token,
-browser events appear tagged `source: "browser"` — both land in the same app dashboard.
+browser/mobile/desktop events appear tagged `source: "client"` — both land in the same app dashboard.
+Use `service_name` to distinguish sub-components (e.g. `"payment-api"`, `"auth-worker"`).
 
 ---
 

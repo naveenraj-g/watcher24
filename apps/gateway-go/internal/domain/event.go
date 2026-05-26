@@ -98,10 +98,15 @@ type Event struct {
 	Payload map[string]any `json:"payload,omitempty"`
 
 	// Source identifies where the event originated.
-	// "browser" for events submitted via a public token from a browser SDK.
-	// "server" for events submitted via a secret API key from a server SDK.
-	// This field is set by the gateway based on the key type — never trusted from input.
+	// "client" for events submitted via a public token (browser, mobile, desktop).
+	// "server" for events submitted via a secret API key from a server-side SDK.
+	// Set by the gateway based on the key type — never trusted from SDK input.
 	Source string `json:"source,omitempty"`
+
+	// ServiceName is an optional developer-set label identifying the component
+	// that sent the event (e.g. "payment-api", "ai-agent", "mobile-ios").
+	// Sent by the SDK as X-Service-Name and stored verbatim — not validated.
+	ServiceName string `json:"service_name,omitempty"`
 
 	// Gateway-added metadata — set during enrichment, not from SDK
 	IPAddress  string `json:"ip_address,omitempty"`

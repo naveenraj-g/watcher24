@@ -18,6 +18,12 @@ export interface ClientOptions {
    * the gateway resolves the application from the key itself.
    */
   appId?: string;
+  /**
+   * Optional developer-set label for the component sending events.
+   * Sent as X-Service-Name header — stored verbatim in ClickHouse for filtering.
+   * Examples: "payment-api", "auth-worker", "mobile-ios", "ai-agent"
+   */
+  serviceName?: string;
   environment?: string;
   gatewayUrl?: string;
   flushInterval?: number;

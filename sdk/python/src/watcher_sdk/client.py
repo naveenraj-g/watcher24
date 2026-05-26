@@ -25,6 +25,7 @@ class Client:
         *,
         api_key: str,
         app_id: str = "",
+        service_name: str = "",
         environment: str = "production",
         gateway_url: str = "http://localhost:8080",
         flush_interval: float = 0.5,
@@ -35,6 +36,10 @@ class Client:
         app_id is optional — app-scoped keys and all public tokens (wpub_) don't
         need it; the gateway resolves the application from the key itself.
         Only pass app_id if you are using a legacy org-level key with no app linked.
+
+        service_name is an optional developer-set label for the sending component
+        (e.g. "payment-api", "auth-worker", "ai-agent"). Stored in ClickHouse
+        for filtering. Can be any string — not validated.
         """
         if not api_key:
             raise ValueError("api_key is required")
@@ -44,6 +49,7 @@ class Client:
             gateway_url=gateway_url,
             api_key=api_key,
             app_id=app_id,
+            service_name=service_name,
             environment=environment,
         )
         self._capture = CaptureEventUseCase(self._buffer)

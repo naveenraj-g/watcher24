@@ -17,6 +17,9 @@ import { createBrowserClient } from "@watcher/browser";
 export const watcherClient = createBrowserClient({
   // VITE_W24_PUBLIC_TOKEN must start with wpub_ — created in Settings → API Keys.
   apiKey: import.meta.env.VITE_W24_PUBLIC_TOKEN ?? "",
+  // serviceName labels this component in the dashboard — filter by "react-client"
+  // in the console to see browser events separately from the Express server.
+  serviceName: "react-client",
   gatewayUrl: import.meta.env.VITE_W24_GATEWAY_URL ?? "http://localhost:8080",
   environment: import.meta.env.MODE,
 });

@@ -168,6 +168,7 @@ func (h *EventsHandler) buildInput(req eventRequest, orgID, appID, forcedType st
 		SessionID:          req.SessionID,
 		Payload:            req.Payload,
 		Source:             eventSource,
+		ServiceName:        c.Get("X-Service-Name"),
 		// Enrichment from HTTP context
 		IPAddress:  c.IP(),
 		SDKVersion: c.Get("X-SDK-Version"),

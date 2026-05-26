@@ -19,6 +19,9 @@ export class BrowserTransport implements Transport {
     // don't need it; the gateway resolves the application from the key itself.
     appId: string | undefined,
     environment: string,
+    // serviceName is the developer-set component label (e.g. "payment-api").
+    // Sent as X-Service-Name header when provided.
+    serviceName?: string,
   ) {
     this.url = `${gatewayUrl.replace(/\/$/, "")}/v1/events`;
     this.headers = {
@@ -29,6 +32,7 @@ export class BrowserTransport implements Transport {
       // Only send x-app-id when explicitly provided — omit for public tokens
       // and app-scoped keys (gateway resolves app from the key itself).
       ...(appId ? { "x-app-id": appId } : {}),
+      ...(serviceName ? { "x-service-name": serviceName } : {}),
     };
   }
 

@@ -21,6 +21,7 @@ const client = createNodeClient({
   // appId is optional: only set if using a legacy org-level key with no app linked.
   // App-scoped keys (the default) resolve the app automatically at the gateway.
   // appId: "billing-api",
+  serviceName: "payment-api",  // optional — component label shown in the dashboard
   environment: "production",   // default: "production"
   gatewayUrl: "http://...",    // default: "http://localhost:8080"
   flushInterval: 500,          // ms between auto-flushes (default: 500)
@@ -41,14 +42,17 @@ import { createBrowserClient } from "@watcher/browser";
 const client = createBrowserClient({
   apiKey: "wpub_...",          // required — public token from Settings → API Keys
   // No appId needed: the gateway resolves the linked app from the token itself.
+  serviceName: "react-frontend", // optional — component label shown in the dashboard
   environment: "production",   // default: "production"
   gatewayUrl: "http://...",    // default: "http://localhost:8080"
 });
 ```
 
-Events sent with a public token are tagged `source: "browser"` by the gateway.
+Events sent with a public token are tagged `source: "client"` by the gateway
+(covering browser, mobile, and desktop uses of the same token type).
 Events from a server-side key on the same app are tagged `source: "server"`.
 Both appear together in the dashboard under the same application.
+Use `serviceName` to distinguish sub-components (e.g. "react-frontend" vs "mobile-ios").
 
 ---
 

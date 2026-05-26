@@ -147,6 +147,7 @@ func eventToStreamFields(event *domain.Event) (map[string]any, error) {
 		"session_id":      event.SessionID,
 		"payload":         payloadJSON,
 		"source":          event.Source,
+		"service_name":    event.ServiceName,
 		"ip_address":      event.IPAddress,
 		"sdk_version":     event.SDKVersion,
 		"runtime":         event.Runtime,
