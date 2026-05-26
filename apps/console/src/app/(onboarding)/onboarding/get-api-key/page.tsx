@@ -14,7 +14,8 @@ export default function GetApiKeyPage() {
   const orgId = searchParams.get("orgId") ?? "";
 
   const [apiKey, setApiKey] = React.useState<string | null>(null);
-  const [copied, setCopied] = React.useState(false);
+  const [copied, setCopied] = React.useState(false);   // drives the checkmark icon (resets after 2s)
+  const [hasCopied, setHasCopied] = React.useState(false); // latches true once, never resets
   const [loading, setLoading] = React.useState(false);
   const [generated, setGenerated] = React.useState(false);
 
@@ -44,6 +45,7 @@ export default function GetApiKeyPage() {
     if (!apiKey) return;
     await navigator.clipboard.writeText(apiKey);
     setCopied(true);
+    setHasCopied(true);
     toast.success("API key copied");
     setTimeout(() => setCopied(false), 2000);
   }
@@ -101,9 +103,9 @@ export default function GetApiKeyPage() {
             <Button
               className="w-full"
               onClick={handleContinue}
-              disabled={!copied}
+              disabled={!hasCopied}
             >
-              {copied ? "Continue to install SDK" : "Copy your key to continue"}
+              {hasCopied ? "Continue to install SDK" : "Copy your key to continue"}
             </Button>
           </>
         )}
