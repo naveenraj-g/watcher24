@@ -1,12 +1,22 @@
 // watcher.ts — browser-side Watcher24 client singleton.
-// Import `watcherClient` wherever you need the raw client, or use the
-// React hooks (useAudit, useLog, etc.) inside components instead.
+// Uses a PUBLIC token (wpub_ prefix), which is safe to ship in browser bundles.
+//
+// Public tokens differ from server-side keys in three ways enforced by the gateway:
+//   1. Origin allowlist — only requests from allowed origins are accepted.
+//   2. Per-minute rate limit — caps burst abuse if the token leaks.
+//   3. Write-only — the token cannot read data, only ingest events.
+//
+// The gateway resolves the linked application from the token itself, so no appId
+// is needed here. Link the token to the same app as your server-side key in
+// Settings → API Keys → Public Tokens so browser and server events are grouped
+// together in the dashboard (browser events tagged source:"browser", server source:"server").
+//
+// Never use a server-side wt_ key here — only wpub_ tokens belong in the browser.
 import { createBrowserClient } from "@watcher/browser";
 
 export const watcherClient = createBrowserClient({
-  apiKey: import.meta.env.VITE_W24_API_KEY ?? "",
-  // appId is optional when using an app-scoped key — the gateway resolves it.
-  ...(import.meta.env.VITE_W24_APP_ID ? { appId: import.meta.env.VITE_W24_APP_ID } : {}),
+  // VITE_W24_PUBLIC_TOKEN must start with wpub_ — created in Settings → API Keys.
+  apiKey: import.meta.env.VITE_W24_PUBLIC_TOKEN ?? "",
   gatewayUrl: import.meta.env.VITE_W24_GATEWAY_URL ?? "http://localhost:8080",
   environment: import.meta.env.MODE,
 });

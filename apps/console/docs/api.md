@@ -156,12 +156,15 @@ List all public tokens for the session's active org. Never returns the raw token
       "enabled": true,
       "allowedOrigins": ["https://myapp.com"],
       "minuteRateLimit": 1000,
+      "appId": "50d1064f-1f69-4b12-b61d-afb78e1a8d38",
       "createdAt": "2026-05-27T10:00:00Z",
       "lastRequest": null
     }
   ]
 }
 ```
+
+`appId` is the Application ID the token is linked to, or `null` when org-level.
 
 ### POST /api/public-tokens
 
@@ -172,12 +175,17 @@ Request body:
 {
   "name": "my-app-browser",
   "allowedOrigins": ["https://myapp.com", "https://staging.myapp.com"],
-  "minuteRateLimit": 1000
+  "minuteRateLimit": 1000,
+  "appId": "50d1064f-1f69-4b12-b61d-afb78e1a8d38"
 }
 ```
 
-`allowedOrigins` must be a non-empty array (max 10). Each origin must start with `https://` or `http://localhost`.
-`minuteRateLimit` is optional; defaults to 1 000, capped at 10 000.
+| Field | Required | Notes |
+|-------|----------|-------|
+| `name` | Yes | |
+| `allowedOrigins` | Yes | Non-empty array, max 10. Must start with `https://` or `http://localhost` |
+| `minuteRateLimit` | No | Defaults to 1 000, max 10 000 |
+| `appId` | No | Links the token to an Application so browser events appear alongside server events in the dashboard. Must belong to the active org. |
 
 Response (201):
 ```json
@@ -188,6 +196,7 @@ Response (201):
   "start": "wpub_xy",
   "allowedOrigins": ["https://myapp.com"],
   "minuteRateLimit": 1000,
+  "appId": "50d1064f-1f69-4b12-b61d-afb78e1a8d38",
   "createdAt": "2026-05-27T10:00:00Z"
 }
 ```

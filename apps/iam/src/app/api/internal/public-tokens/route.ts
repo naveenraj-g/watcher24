@@ -4,6 +4,10 @@
 // INTERNAL_API_SECRET shared secret so the console can create, list, and
 // revoke public browser tokens without going through the better-auth client.
 //
+// Public tokens share the same Apikey row as secret keys and can be linked to
+// the same Application as a secret key — events from both sources land under
+// the same app in the dashboard, with source="browser" vs source="server".
+//
 // Public tokens differ from secret API keys in three ways:
 //   1. keyType = "public"  — gateway enforces origin allowlist + write-only access
 //   2. allowedOrigins      — CORS allowlist; gateway rejects unrecognised origins
@@ -59,6 +63,7 @@ export async function GET(req: NextRequest) {
       enabled: true,
       allowedOrigins: true,
       minuteRateLimit: true,
+      appId: true,
       createdAt: true,
       lastRequest: true,
     },
@@ -80,11 +85,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const { orgId, name, allowedOrigins, minuteRateLimit } = body as {
+  const { orgId, name, allowedOrigins, minuteRateLimit, appId } = body as {
     orgId?: string;
     name?: string;
     allowedOrigins?: unknown;
     minuteRateLimit?: unknown;
+    // appId links the token to the same Application as the server-side secret key
+    // so browser and server events are grouped under the same app in the dashboard.
+    appId?: string;
   };
 
   if (!orgId)
@@ -142,6 +150,21 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // If an appId was provided, verify it belongs to this org.
+  // This prevents one org from linking a public token to another org's app.
+  if (appId) {
+    const app = await prisma.application.findUnique({
+      where: { id: appId },
+      select: { id: true, organizationId: true },
+    });
+    if (!app || app.organizationId !== orgId) {
+      return NextResponse.json(
+        { error: "Application not found or does not belong to this organisation" },
+        { status: 404 },
+      );
+    }
+  }
+
   // Generate token: wpub_ prefix + 32 random bytes (base64url)
   const rawToken = "wpub_" + crypto.randomBytes(32).toString("base64url");
   const hash = hashKey(rawToken);
@@ -161,6 +184,9 @@ export async function POST(req: NextRequest) {
       keyType: "public",
       allowedOrigins: allowedOrigins as string[],
       minuteRateLimit: rateLimit,
+      // Link to the application so gateway tags events with the correct application_id.
+      // Null when no app was specified — token is org-level (events still ingest, just unscoped).
+      ...(appId ? { appId } : {}),
     },
     select: {
       id: true,
@@ -168,6 +194,7 @@ export async function POST(req: NextRequest) {
       start: true,
       allowedOrigins: true,
       minuteRateLimit: true,
+      appId: true,
       createdAt: true,
     },
   });

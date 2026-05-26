@@ -268,10 +268,10 @@ Only tables that are NOT owned by IAM — e.g., `applications` (the Watcher24-sp
 
 ---
 
-### 10. Keep Internal Docs in Sync (mandatory)
+### 10. Keep Internal Docs, SDKs, and Example Apps in Sync (mandatory)
 
 Every time you add a feature, change an API, or modify behaviour in any app, you **must** read
-and update the relevant internal documentation before committing.
+and update the relevant internal documentation, SDK code/docs, and example applications before committing.
 
 **Docs to check on every change:**
 
@@ -284,13 +284,29 @@ and update the relevant internal documentation before committing.
 | New IAM internal endpoint | `apps/iam/docs/api.md` (mandatory per Rule 9) |
 | Console UI feature visible to users | `apps/console/docs/api.md` (if a new route was added) |
 
-**Example apps and SDK docs:**
+**SDKs — always update when the platform changes:**
+- If you add a new event type, token type, or field that SDKs send or receive, update all SDKs:
+  - `sdk/js/packages/core/` — shared types and client facade
+  - `sdk/js/packages/browser/` — browser transport and public-token helpers
+  - `sdk/js/packages/node/` — Node.js transport
+  - `sdk/python/src/watcher_sdk/` — Python client and HTTP transport
+- Update the SDK docs (`sdk/js/docs/api.md`, `sdk/python/docs/api.md`) to reflect the change.
+- If the SDK API surface changes (new method, removed param, new optional field), bump the version comment at the top of the relevant client file.
+
+**Example apps — always update when the SDK or gateway changes:**
+- `examples/nextjs/` — Next.js full-stack example (server + browser SDKs)
+- `examples/react-node/` — React SPA + Node.js backend example
+- `examples/fastapi/` — FastAPI + Python SDK example
+- Keep `.env.example` files in each example up to date with new required/optional variables.
+- Example code must demonstrate new features with correct, working code and inline comments explaining the WHY.
+
+**Console MDX docs:**
 - If you change how the SDK is used (method signatures, env vars, package names), also update
   the relevant MDX pages in `apps/console/src/content/docs/` and `apps/console/src/content/docs/sdks/`.
 - If the gateway's accepted request shape changes, check `apps/console/src/content/docs/api/ingestion.mdx`.
 
 **The rule in one sentence:**  
-_A feature is not done until the docs reflect it. If you added it to the code, add it to the docs._
+_A feature is not done until the docs, SDKs, and example apps all reflect it._
 
 ---
 

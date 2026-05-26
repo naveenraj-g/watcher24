@@ -1,19 +1,22 @@
 // watcher-browser.ts — browser-side Watcher24 client singleton.
-// Used by the WatcherProvider in the root layout so all Client Components
-// can call useAudit / useLog / useTrace / useMetric without prop drilling.
+// Uses a PUBLIC token (wpub_ prefix), which is safe to ship in browser bundles.
 //
-// Multi-app keys: if NEXT_PUBLIC_W24_API_KEY is scoped to a specific app
-// (created via Settings → Apps in the console), appId is resolved by the
-// gateway automatically. The appId field is only needed for legacy org-level keys.
+// Public tokens differ from server-side keys in three ways enforced by the gateway:
+//   1. Origin allowlist — only requests from allowed origins are accepted.
+//   2. Per-minute rate limit — caps burst abuse if the token leaks.
+//   3. Write-only — the token cannot read data, only ingest events.
+//
+// The gateway resolves the linked application from the token itself, so no appId
+// is needed here. Link the token to the same app as your server-side key in
+// Settings → API Keys → Public Tokens so browser and server events are grouped
+// together in the dashboard (browser events tagged source:"browser", server source:"server").
+//
+// Never use a server-side wt_ key here — only wpub_ tokens belong in the browser.
 import { createBrowserClient } from "@watcher/browser";
 
 export const watcherBrowserClient = createBrowserClient({
-  apiKey: process.env.NEXT_PUBLIC_W24_API_KEY ?? "",
-  // appId is optional when using an app-scoped key — the gateway resolves it.
-  // Only set this if your key is an org-level key (no app linked in the console).
-  ...(process.env.NEXT_PUBLIC_W24_APP_ID
-    ? { appId: process.env.NEXT_PUBLIC_W24_APP_ID }
-    : {}),
+  // NEXT_PUBLIC_W24_PUBLIC_TOKEN must start with wpub_ — created in Settings → API Keys.
+  apiKey: process.env.NEXT_PUBLIC_W24_PUBLIC_TOKEN ?? "",
   gatewayUrl: process.env.NEXT_PUBLIC_W24_GATEWAY_URL ?? "http://localhost:8080",
   environment: process.env.NODE_ENV ?? "development",
 });

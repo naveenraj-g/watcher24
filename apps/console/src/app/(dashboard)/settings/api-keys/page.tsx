@@ -40,6 +40,11 @@ interface ApiKey {
   enabled: boolean;
 }
 
+interface App {
+  id: string;
+  name: string;
+}
+
 interface PublicToken {
   id: string;
   name: string;
@@ -47,6 +52,7 @@ interface PublicToken {
   enabled: boolean;
   allowedOrigins: string[];
   minuteRateLimit: number;
+  appId: string | null;
   createdAt: string;
   lastRequest: string | null;
 }
@@ -68,9 +74,14 @@ export default function ApiKeysPage() {
   const [newPubName, setNewPubName] = useState("");
   const [newPubOrigins, setNewPubOrigins] = useState("");
   const [newPubRateLimit, setNewPubRateLimit] = useState("1000");
+  const [newPubAppId, setNewPubAppId] = useState("");
   const [createdPubToken, setCreatedPubToken] = useState<string | null>(null);
   const [revokePubTarget, setRevokePubTarget] = useState<PublicToken | null>(null);
   const [revokingPub, setRevokingPub] = useState(false);
+
+  // ── Apps state (for linking public tokens to an app) ───────────────────────
+  const [apps, setApps] = useState<App[]>([]);
+  const [loadingApps, setLoadingApps] = useState(false);
 
   async function fetchKeys() {
     setLoadingKeys(true);
@@ -96,9 +107,24 @@ export default function ApiKeysPage() {
     setLoadingPub(false);
   }
 
+  async function fetchApps() {
+    setLoadingApps(true);
+    try {
+      const res = await fetch("/api/apps");
+      if (res.ok) {
+        const data = await res.json();
+        setApps(Array.isArray(data) ? data : []);
+      }
+    } catch {
+      // leave empty
+    }
+    setLoadingApps(false);
+  }
+
   useEffect(() => {
     fetchKeys();
     fetchPubTokens();
+    fetchApps();
   }, []);
 
   async function handleCreateKey(e: React.FormEvent) {
@@ -157,6 +183,9 @@ export default function ApiKeysPage() {
           name: newPubName || "Browser token",
           allowedOrigins: origins,
           minuteRateLimit: isNaN(rateLimit) || rateLimit <= 0 ? 1000 : rateLimit,
+          // appId links this token to an application so browser + server events
+          // are grouped together in the dashboard. Omitted when no app is selected.
+          ...(newPubAppId ? { appId: newPubAppId } : {}),
         }),
       });
       const data = await res.json();
@@ -167,6 +196,7 @@ export default function ApiKeysPage() {
         setNewPubName("");
         setNewPubOrigins("");
         setNewPubRateLimit("1000");
+        setNewPubAppId("");
         await fetchPubTokens();
         toast.success("Public token created — copy it now");
       }
@@ -439,6 +469,30 @@ export default function ApiKeysPage() {
                   />
                 </div>
 
+                <div className="space-y-1">
+                  <Label htmlFor="pub-app" className="text-xs">
+                    Link to application{" "}
+                    <span className="text-muted-foreground">(optional)</span>
+                  </Label>
+                  <select
+                    id="pub-app"
+                    value={newPubAppId}
+                    onChange={(e) => setNewPubAppId(e.target.value)}
+                    disabled={loadingApps}
+                    className="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <option value="">— No app (org-level) —</option>
+                    {apps.map((app) => (
+                      <option key={app.id} value={app.id}>
+                        {app.name}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-muted-foreground">
+                    Link to an app to group browser and server events together in the dashboard.
+                  </p>
+                </div>
+
                 <Button type="submit" size="sm" disabled={creatingPub}>
                   {creatingPub ? "Creating…" : "Create token"}
                 </Button>
@@ -495,6 +549,11 @@ export default function ApiKeysPage() {
                           <Badge variant="outline" className="text-xs font-mono">
                             {token.minuteRateLimit}/min
                           </Badge>
+                          {token.appId && (
+                            <Badge variant="secondary" className="text-xs">
+                              {apps.find((a) => a.id === token.appId)?.name ?? token.appId}
+                            </Badge>
+                          )}
                           <Button
                             size="icon"
                             variant="ghost"

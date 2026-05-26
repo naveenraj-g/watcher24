@@ -15,16 +15,20 @@ export class BrowserTransport implements Transport {
   constructor(
     gatewayUrl: string,
     apiKey: string,
-    appId: string,
+    // appId is optional — public tokens (wpub_) and app-scoped secret keys
+    // don't need it; the gateway resolves the application from the key itself.
+    appId: string | undefined,
     environment: string,
   ) {
     this.url = `${gatewayUrl.replace(/\/$/, "")}/v1/events`;
     this.headers = {
       "content-type": "application/json",
       "authorization": `Bearer ${apiKey}`,
-      "x-app-id": appId,
       "x-environment": environment,
       "x-sdk-version": "0.1.0",
+      // Only send x-app-id when explicitly provided — omit for public tokens
+      // and app-scoped keys (gateway resolves app from the key itself).
+      ...(appId ? { "x-app-id": appId } : {}),
     };
   }
 

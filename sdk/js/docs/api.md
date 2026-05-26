@@ -1,14 +1,26 @@
 # Watcher SDK (JavaScript) — API Reference
 
-## Client
+## Key types
+
+| Key prefix | Used with | `appId` needed? |
+|------------|-----------|-----------------|
+| `wt_...`   | Node.js / server SDKs | Only for legacy org-level keys. App-scoped keys resolve automatically. |
+| `wpub_...` | Browser SDK | Never — gateway resolves the app from the token itself. |
+
+Create keys and public tokens in **Settings → API Keys** in the console.
+
+---
+
+## Server client (Node.js)
 
 ```ts
-import { createNodeClient } from "@watcher/node";   // Node.js
-import { createBrowserClient } from "@watcher/browser"; // Browser
+import { createNodeClient } from "@watcher/node";
 
 const client = createNodeClient({
-  apiKey: "wtch_...",          // required
-  appId: "billing-api",        // required
+  apiKey: "wt_...",            // required — server-side secret key
+  // appId is optional: only set if using a legacy org-level key with no app linked.
+  // App-scoped keys (the default) resolve the app automatically at the gateway.
+  // appId: "billing-api",
   environment: "production",   // default: "production"
   gatewayUrl: "http://...",    // default: "http://localhost:8080"
   flushInterval: 500,          // ms between auto-flushes (default: 500)
@@ -16,6 +28,27 @@ const client = createNodeClient({
   maxBuffer: 10_000,           // drop oldest if buffer exceeds this (default: 10000)
 });
 ```
+
+## Browser client (public token)
+
+Public tokens (`wpub_` prefix) are safe to ship in browser bundles. The gateway
+enforces an origin allowlist and a per-minute rate limit so a leaked token cannot
+be abused at scale.
+
+```ts
+import { createBrowserClient } from "@watcher/browser";
+
+const client = createBrowserClient({
+  apiKey: "wpub_...",          // required — public token from Settings → API Keys
+  // No appId needed: the gateway resolves the linked app from the token itself.
+  environment: "production",   // default: "production"
+  gatewayUrl: "http://...",    // default: "http://localhost:8080"
+});
+```
+
+Events sent with a public token are tagged `source: "browser"` by the gateway.
+Events from a server-side key on the same app are tagged `source: "server"`.
+Both appear together in the dashboard under the same application.
 
 ---
 
@@ -116,8 +149,8 @@ log("warn", "Cart empty at checkout");
 import { watcherMiddleware } from "@watcher/nextjs";
 
 export const middleware = watcherMiddleware({
-  apiKey: process.env.WATCHER_API_KEY!,
-  appId: "my-nextjs-app",
+  apiKey: process.env.W24_API_KEY!,
+  // appId is optional — only for legacy org-level keys. App-scoped keys resolve automatically.
 });
 
 export const config = { matcher: "/api/:path*" };

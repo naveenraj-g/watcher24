@@ -12,7 +12,12 @@ import { FlushBufferUseCase } from "./usecases/flush-buffer.js";
 
 export interface ClientOptions {
   apiKey: string;
-  appId: string;
+  /**
+   * Optional — only needed for legacy org-level keys that have no app linked in the console.
+   * App-scoped secret keys and all public tokens (wpub_) do not need this;
+   * the gateway resolves the application from the key itself.
+   */
+  appId?: string;
   environment?: string;
   gatewayUrl?: string;
   flushInterval?: number;
@@ -27,7 +32,6 @@ export class Client {
 
   constructor(transport: Transport, options: ClientOptions) {
     if (!options.apiKey) throw new Error("apiKey is required");
-    if (!options.appId) throw new Error("appId is required");
 
     const buffer = new EventBuffer(options.maxBuffer ?? 10_000);
     this.capture = new CaptureEventUseCase(buffer);

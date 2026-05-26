@@ -15,17 +15,20 @@ export class NodeTransport implements Transport {
   constructor(
     gatewayUrl: string,
     apiKey: string,
-    appId: string,
+    // appId is optional — app-scoped keys and public tokens (wpub_) don't need it;
+    // the gateway resolves the application from the key itself.
+    appId: string | undefined,
     environment: string,
   ) {
     this.url = new URL("/v1/events", gatewayUrl);
     this.headers = {
       "content-type": "application/json",
       "authorization": `Bearer ${apiKey}`,
-      "x-app-id": appId,
       "x-environment": environment,
       "x-sdk-version": "0.1.0",
       "x-runtime": `node/${process.version}`,
+      // Only send x-app-id when explicitly provided.
+      ...(appId ? { "x-app-id": appId } : {}),
     };
   }
 

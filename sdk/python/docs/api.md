@@ -1,13 +1,26 @@
 # Watcher SDK (Python) — API Reference
 
+## Key types
+
+| Key prefix | Used with | `app_id` needed? |
+|------------|-----------|-----------------|
+| `wt_...`   | Server SDKs (Python, Go, Node.js) | Only for legacy org-level keys. App-scoped keys resolve automatically. |
+| `wpub_...` | Browser SDK only — not for server-side use | Never — gateway resolves app from the token. |
+
+Create keys in **Settings → API Keys** in the console.
+
+---
+
 ## Client
 
 ```python
 from watcher_sdk import Client
 
 client = Client(
-    api_key="wtch_...",           # required — from IAM
-    app_id="billing-api",         # required — your application name
+    api_key="wt_...",             # required — server-side secret key
+    # app_id is optional: only set if using a legacy org-level key with no app linked.
+    # App-scoped keys (the default) resolve the app automatically at the gateway.
+    # app_id="billing-api",
     environment="production",     # optional — default: "production"
     gateway_url="http://...",     # optional — default: "http://localhost:8080"
     flush_interval=0.5,           # optional — seconds between auto-flushes (default: 0.5)
@@ -15,6 +28,10 @@ client = Client(
     max_buffer=10_000,            # optional — drop oldest if buffer exceeds this (default: 10000)
 )
 ```
+
+Events sent with a server-side key are tagged `source: "server"` by the gateway.
+If the same application also has a browser SDK with a `wpub_` public token,
+browser events appear tagged `source: "browser"` — both land in the same app dashboard.
 
 ---
 

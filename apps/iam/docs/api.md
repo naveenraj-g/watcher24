@@ -49,12 +49,15 @@ List all public tokens for an organisation. Never returns the raw token value.
       "enabled": true,
       "allowedOrigins": ["https://myapp.com"],
       "minuteRateLimit": 1000,
+      "appId": "50d1064f-1f69-4b12-b61d-afb78e1a8d38",
       "createdAt": "2026-05-27T10:00:00Z",
       "lastRequest": null
     }
   ]
 }
 ```
+
+`appId` is the linked Application ID (`application.id`). `null` when the token is org-level (no app linked).
 
 ---
 
@@ -69,7 +72,8 @@ Create a new public token for an organisation.
   "orgId": "org_...",
   "name": "my-app-browser",
   "allowedOrigins": ["https://myapp.com", "https://staging.myapp.com"],
-  "minuteRateLimit": 1000
+  "minuteRateLimit": 1000,
+  "appId": "50d1064f-1f69-4b12-b61d-afb78e1a8d38"
 }
 ```
 
@@ -79,6 +83,7 @@ Create a new public token for an organisation.
 | `name` | Yes | Non-empty string |
 | `allowedOrigins` | Yes | Non-empty array, max 10 entries. Each must start with `https://` or `http://localhost` |
 | `minuteRateLimit` | No | Positive integer, max 10 000. Defaults to 1 000 |
+| `appId` | No | Application ID to link the token to. Must belong to `orgId`. When set, the gateway tags all browser events from this token with `application_id` — same app as the server-side key so both appear together in the dashboard. |
 
 **Response (201):**
 
@@ -90,9 +95,12 @@ Create a new public token for an organisation.
   "start": "wpub_xy",
   "allowedOrigins": ["https://myapp.com"],
   "minuteRateLimit": 1000,
+  "appId": "50d1064f-1f69-4b12-b61d-afb78e1a8d38",
   "createdAt": "2026-05-27T10:00:00Z"
 }
 ```
+
+`appId` is `null` in the response when no app was linked.
 
 The `token` field is the raw key — it appears **only in this response**. The caller must
 present it to the user immediately; it cannot be retrieved again.
@@ -102,7 +110,7 @@ present it to the user immediately; it cannot be retrieved again.
 | Status | Meaning |
 |--------|---------|
 | 400 | `orgId`, `name`, or `allowedOrigins` missing or invalid |
-| 404 | Organisation not found |
+| 404 | Organisation not found, or `appId` provided but not found / does not belong to this org |
 
 ---
 

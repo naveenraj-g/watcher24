@@ -24,17 +24,20 @@ class Client:
         self,
         *,
         api_key: str,
-        app_id: str,
+        app_id: str = "",
         environment: str = "production",
         gateway_url: str = "http://localhost:8080",
         flush_interval: float = 0.5,
         flush_at: int = 100,
         max_buffer: int = 10_000,
     ) -> None:
+        """
+        app_id is optional — app-scoped keys and all public tokens (wpub_) don't
+        need it; the gateway resolves the application from the key itself.
+        Only pass app_id if you are using a legacy org-level key with no app linked.
+        """
         if not api_key:
             raise ValueError("api_key is required")
-        if not app_id:
-            raise ValueError("app_id is required")
 
         self._buffer = EventBuffer(max_size=max_buffer)
         transport = HttpTransport(
