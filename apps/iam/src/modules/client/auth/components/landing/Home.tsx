@@ -13,12 +13,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
-  ShieldCheck,
-  Users,
-  Key,
-  Lock,
-  Code2,
-  Building2,
+  Activity,
   LayoutDashboard,
   ArrowRight,
   CheckCircle2,
@@ -29,29 +24,40 @@ import {
   Terminal,
   Network,
   Layers,
-  UserCheck,
-  Activity,
-  GitBranch,
   ChevronRight,
-  RefreshCw,
   Database,
   Server,
+  Radio,
+  Package,
+  BarChart3,
+  Building2,
+  GitBranch,
+  Lock,
+  RefreshCw,
+  Users,
+  Code2,
 } from "lucide-react";
 
 // ── Mock Dashboard Preview ──────────────────────────────────────────────────
 
-const MOCK_USERS = [
-  { name: "Alice Chen", email: "alice@corp.com", role: "superadmin" },
-  { name: "Bob Smith", email: "bob@corp.com", role: "admin" },
-  { name: "Carol White", email: "carol@corp.com", role: "guest" },
+const MOCK_EVENTS = [
+  { severity: "error", message: "Payment gateway timeout", time: "2s ago", env: "prod" },
+  { severity: "warn",  message: "Cache miss rate above 40%", time: "18s ago", env: "prod" },
+  { severity: "info",  message: "User signup completed",     time: "1m ago",  env: "prod" },
 ];
+
+const SEVERITY_COLORS: Record<string, string> = {
+  error: "bg-red-500/15 text-red-500",
+  warn:  "bg-yellow-500/15 text-yellow-500",
+  info:  "bg-blue-500/15 text-blue-500",
+};
 
 const MOCK_SIDEBAR = [
   { icon: LayoutDashboard, label: "Overview", active: false },
-  { icon: Users, label: "Users", active: true },
-  { icon: Building2, label: "Orgs", active: false },
-  { icon: Shield, label: "Roles", active: false },
-  { icon: Key, label: "API Keys", active: false },
+  { icon: FileText,        label: "Logs",     active: true  },
+  { icon: Activity,        label: "Traces",   active: false },
+  { icon: BarChart3,       label: "Metrics",  active: false },
+  { icon: Shield,          label: "Audit",    active: false },
 ];
 
 function DashboardPreview() {
@@ -63,7 +69,7 @@ function DashboardPreview() {
         <div className="h-2.5 w-2.5 rounded-full bg-yellow-400/70" />
         <div className="h-2.5 w-2.5 rounded-full bg-green-400/70" />
         <span className="ml-3 font-mono text-[11px] text-muted-foreground">
-          IAM Admin · Users
+          Watcher24 · Log Explorer
         </span>
       </div>
       <div className="flex">
@@ -87,53 +93,48 @@ function DashboardPreview() {
         <div className="flex-1 p-4">
           <div className="mb-3 flex items-center justify-between">
             <span className="text-xs font-semibold text-foreground">
-              Members
+              Live Events
             </span>
             <Badge variant="secondary" className="text-[10px]">
-              3 users
+              <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-green-500" />
+              Streaming
             </Badge>
           </div>
           <div className="space-y-2">
-            {MOCK_USERS.map((u) => (
+            {MOCK_EVENTS.map((e, i) => (
               <div
-                key={u.email}
-                className="flex items-center justify-between rounded-lg border bg-background/60 px-3 py-2"
+                key={i}
+                className="flex items-center gap-2 rounded-lg border bg-background/60 px-3 py-2"
               >
-                <div className="flex items-center gap-2">
-                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">
-                    {u.name[0]}
-                  </div>
-                  <div>
-                    <p className="text-[11px] font-medium leading-none text-foreground">
-                      {u.name}
-                    </p>
-                    <p className="mt-0.5 text-[10px] text-muted-foreground">
-                      {u.email}
-                    </p>
-                  </div>
-                </div>
-                <Badge
-                  variant={u.role === "superadmin" ? "default" : "secondary"}
-                  className="text-[10px]"
+                <span
+                  className={`shrink-0 rounded px-1.5 py-0.5 font-mono text-[9px] font-semibold uppercase ${SEVERITY_COLORS[e.severity]}`}
                 >
-                  {u.role}
-                </Badge>
+                  {e.severity}
+                </span>
+                <p className="flex-1 truncate text-[11px] font-medium text-foreground">
+                  {e.message}
+                </p>
+                <span className="shrink-0 text-[10px] text-muted-foreground">
+                  {e.time}
+                </span>
               </div>
             ))}
           </div>
-          {/* Permissions mini-row */}
+          {/* Stats mini-row */}
           <div className="mt-4 rounded-lg border bg-muted/30 p-3">
-            <p className="mb-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
-              Active Permissions
+            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              This Month
             </p>
-            <div className="flex flex-wrap gap-1">
-              {["patients:read", "reports:create", "users:manage"].map((p) => (
-                <span
-                  key={p}
-                  className="rounded-md bg-primary/10 px-1.5 py-0.5 font-mono text-[9px] text-primary"
-                >
-                  {p}
-                </span>
+            <div className="flex flex-wrap gap-3">
+              {[
+                { label: "Events", value: "48.2k" },
+                { label: "Errors", value: "124" },
+                { label: "P95 Latency", value: "142ms" },
+              ].map((s) => (
+                <div key={s.label} className="text-[10px]">
+                  <span className="font-semibold text-foreground">{s.value}</span>
+                  <span className="ml-1 text-muted-foreground">{s.label}</span>
+                </div>
               ))}
             </div>
           </div>
@@ -166,20 +167,19 @@ function HeroSection({ session }: { session: TServerSession }) {
           {/* Text */}
           <div className="space-y-8">
             <Badge variant="secondary" className="gap-1.5">
-              <ShieldCheck className="h-3 w-3" />
-              Identity &amp; Access Management
+              <Activity className="h-3 w-3" />
+              Observability Platform
             </Badge>
 
             <div className="space-y-4">
               <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl lg:text-[3.25rem] lg:leading-tight">
-                Secure Authentication &amp;{" "}
-                <span className="text-primary">Authorization</span> for Modern
-                Applications
+                Real-Time Observability for{" "}
+                <span className="text-primary">Every Application</span>
               </h1>
               <p className="max-w-lg text-lg text-muted-foreground">
-                A flexible IAM platform designed for internal systems — with
-                multi-tenant support, fine-grained RBAC, and OAuth&nbsp;2.1
-                built in.
+                Ingest logs, metrics, traces, and audit events from any SDK in
+                seconds. Monitor every service, debug faster, and stay ahead of
+                production issues.
               </p>
             </div>
 
@@ -215,10 +215,10 @@ function HeroSection({ session }: { session: TServerSession }) {
 
             <div className="flex flex-wrap gap-x-5 gap-y-2 text-xs text-muted-foreground">
               {[
-                "OAuth 2.1 / OIDC",
+                "Real-Time Streaming",
                 "Multi-Tenant",
-                "Fine-Grained RBAC",
-                "JWT + Refresh Tokens",
+                "SDK Ready",
+                "Audit Logs",
               ].map((f) => (
                 <span key={f} className="flex items-center gap-1.5">
                   <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
@@ -248,40 +248,40 @@ function HeroSection({ session }: { session: TServerSession }) {
 
 const FEATURES = [
   {
-    icon: Building2,
-    title: "Multi-Tenant Architecture",
+    icon: Radio,
+    title: "Real-Time Event Streaming",
     description:
-      "Manage multiple organizations and teams with isolated namespaces, memberships, and permission scopes.",
+      "WebSocket fan-out delivers events to your dashboard the moment they are ingested — no polling, no delays.",
+  },
+  {
+    icon: Building2,
+    title: "Multi-Tenant by Design",
+    description:
+      "Every organisation gets isolated storage, API keys, and role-based access. One platform, many teams.",
+  },
+  {
+    icon: Package,
+    title: "SDK-First Ingestion",
+    description:
+      "Official SDKs for JavaScript, Python, Go, and Rust. Drop in three lines of code and start capturing events.",
+  },
+  {
+    icon: Network,
+    title: "Distributed Tracing",
+    description:
+      "Propagate trace and span IDs across services. Reconstruct the full request journey from a single view.",
+  },
+  {
+    icon: BarChart3,
+    title: "Metrics & Alerting",
+    description:
+      "Track custom counters and gauges. Set threshold alerts and receive webhook notifications on violations.",
   },
   {
     icon: Shield,
-    title: "Fine-Grained RBAC",
+    title: "Audit & Compliance",
     description:
-      "Define roles with granular permission sets. DENY always overrides ALLOW for predictable access control.",
-  },
-  {
-    icon: Globe,
-    title: "OAuth 2.1 & OIDC",
-    description:
-      "Act as a full OAuth 2.1 authorization server. Issue access, refresh, and ID tokens for connected apps.",
-  },
-  {
-    icon: Code2,
-    title: "Developer-Friendly APIs",
-    description:
-      "Type-safe server actions, a clean client SDK, and an auto-generated OpenAPI spec for seamless integration.",
-  },
-  {
-    icon: Key,
-    title: "Token Management",
-    description:
-      "JWT with configurable expiry, refresh token rotation, API keys, and token revocation built in.",
-  },
-  {
-    icon: Activity,
-    title: "Session & Audit",
-    description:
-      "Database-backed sessions with cookie caching, two-factor authentication, and audit trail hooks.",
+      "Immutable append-only audit log with environment tagging. Built for SOC 2, HIPAA, and internal review.",
   },
 ];
 
@@ -297,8 +297,8 @@ function FeaturesSection() {
             Everything you need in one platform
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
-            Purpose-built for internal systems that require reliable, scalable
-            identity management.
+            Purpose-built for engineering teams that need reliable, scalable
+            observability without the complexity.
           </p>
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -331,36 +331,36 @@ function FeaturesSection() {
 const STEPS = [
   {
     step: "01",
-    icon: UserCheck,
-    title: "Authenticate Users",
+    icon: Code2,
+    title: "Instrument Your App",
     description:
-      "Support email/password, social OAuth (GitHub, Google), magic links, and two-factor OTP authentication.",
-    items: ["Email & Password", "OAuth Providers", "Magic Links", "2FA / OTP"],
+      "Install the Watcher24 SDK, configure your API key and application ID, and start emitting events.",
+    items: ["JS / Python / Go / Rust SDKs", "Single API key per environment", "Works in any runtime", "Zero config defaults"],
   },
   {
     step: "02",
     icon: Layers,
-    title: "Assign Roles & Permissions",
+    title: "Ingest in Real Time",
     description:
-      "Create roles with fine-grained permissions scoped to organizations and teams. Supports role inheritance.",
+      "Events flow through the gateway into Redis streams, then get processed and stored in ClickHouse — all in milliseconds.",
     items: [
-      "Custom role definitions",
-      "Permission inheritance",
-      "Team-level scoping",
-      "Dynamic access control",
+      "Sub-100ms ingest latency",
+      "Batch and single-event API",
+      "Plan-based rate limits",
+      "Automatic enrichment",
     ],
   },
   {
     step: "03",
-    icon: Lock,
-    title: "Enforce Access Control",
+    icon: Activity,
+    title: "Observe & Act",
     description:
-      "Validate permissions on every request. The resolver computes effective permissions with DENY precedence.",
+      "Query your event history, follow live streams, set alerts, and drill into traces — all from one console.",
     items: [
-      "Per-request validation",
-      "DENY overrides ALLOW",
-      "Cached permission sets",
-      "API key enforcement",
+      "Live event explorer",
+      "Structured search & filters",
+      "Distributed trace viewer",
+      "Webhook alerts",
     ],
   },
 ];
@@ -374,10 +374,10 @@ function HowItWorksSection() {
             How It Works
           </Badge>
           <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-            Simple flow, powerful control
+            From zero to observability in minutes
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-muted-foreground">
-            Three phases that take a user from identity to authorized action.
+            Three phases that take an uninstrumented service to full real-time visibility.
           </p>
         </div>
 
@@ -431,44 +431,47 @@ function HowItWorksSection() {
 
 // ── Developer Experience ─────────────────────────────────────────────────────
 
-const CODE_EXAMPLE = `import { authClient } from "@/modules/client/auth/auth-client";
+const CODE_EXAMPLE = `import { createClient } from "@watcher24/sdk";
 
-// Authenticate
-const { data: session } = await authClient.signIn.email({
-  email: "user@example.com",
-  password: "••••••••",
+const w24 = createClient({
+  apiKey: process.env.W24_API_KEY,
 });
 
-// Resolve effective permissions
-const result = await resolvePermissionsAction({
-  userId: session.user.id,
-  organizationId: "org_01HV...",
+// Capture an error
+await w24.log({
+  severity: "error",
+  message: "Payment gateway timeout",
+  payload: { provider: "stripe", retries: 3 },
 });
-// {
-//   allow: ["patients:read", "reports:create"],
-//   deny:  ["patients:delete"],
-//   final: ["patients:read", "reports:create"]
-// }
 
-// Enforce in a server action or API route
-await requirePermission("patients:read", organizationId);`;
+// Trace a request
+const span = await w24.trace.start("checkout.process");
+await processOrder(orderId);
+await span.end({ status: "ok", durationMs: 142 });
+
+// Record a metric
+await w24.metric({
+  name: "api.response_time",
+  value: 142,
+  unit: "ms",
+});`;
 
 const DX_ITEMS = [
   {
     icon: Terminal,
-    text: "ZSA server actions with full TypeScript type safety",
+    text: "Typed SDKs for JS, Python, Go, and Rust — install and start in minutes",
   },
   {
     icon: GitBranch,
-    text: "Clean Architecture — use cases, controllers, services",
+    text: "Separate environments (production, staging, dev) per application",
   },
   {
     icon: Zap,
-    text: "Permission caching with 60 s TTL and automatic invalidation",
+    text: "Batch ingestion API — send up to 500 events in a single request",
   },
   {
-    icon: FileText,
-    text: "Auto-generated OpenAPI spec via Better Auth plugin",
+    icon: Globe,
+    text: "OpenAPI-compatible gateway — integrate with any HTTP client",
   },
 ];
 
@@ -484,9 +487,9 @@ function DeveloperSection() {
               Integrate in minutes, not days
             </h2>
             <p className="text-muted-foreground">
-              Type-safe server actions, a clean client SDK, and a permission
-              resolver that gives you the full picture — allowed, denied, and
-              effective permissions in one call.
+              Official SDKs for every major language with a familiar, chainable
+              API. Single API key, automatic batching, and structured payloads
+              — so you spend time building features, not plumbing.
             </p>
             <ul className="space-y-3">
               {DX_ITEMS.map(({ icon: Icon, text }) => (
@@ -507,7 +510,7 @@ function DeveloperSection() {
               <div className="h-2.5 w-2.5 rounded-full bg-yellow-400/60" />
               <div className="h-2.5 w-2.5 rounded-full bg-green-400/60" />
               <span className="ml-2 font-mono text-[11px] text-muted-foreground">
-                auth-usage.ts
+                watcher24-usage.ts
               </span>
             </div>
             <CardContent className="p-0">
@@ -528,28 +531,28 @@ function DeveloperSection() {
 
 const USE_CASES = [
   {
-    icon: LayoutDashboard,
-    title: "Internal Admin Dashboards",
+    icon: Globe,
+    title: "Web & Mobile Applications",
     description:
-      "Gate every admin route and server action behind role checks. Superadmin, admin, and guest roles configured out of the box.",
-  },
-  {
-    icon: Building2,
-    title: "Enterprise Applications",
-    description:
-      "Manage hundreds of users across isolated tenants with per-org roles, teams, and permission inheritance.",
-  },
-  {
-    icon: Network,
-    title: "Multi-Tenant Systems",
-    description:
-      "Each organization gets its own role hierarchy and permission set. Members are scoped to their tenant namespace.",
+      "Capture frontend errors, user actions, and session events in real time. Reproduce bugs with full context — no guessing.",
   },
   {
     icon: Server,
-    title: "Platform-Level Access Control",
+    title: "Backend Services & APIs",
     description:
-      "Issue OAuth 2.1 tokens for service-to-service communication. Enforce scopes and audiences consistently.",
+      "Track request latency, database query times, error rates, and throughput. Detect regressions before your users do.",
+  },
+  {
+    icon: Shield,
+    title: "Audit & Compliance",
+    description:
+      "Immutable audit trail for every user action. Environment-tagged, retention-controlled, and ready for SOC 2 reviews.",
+  },
+  {
+    icon: Network,
+    title: "Microservice Architectures",
+    description:
+      "Propagate trace context across service boundaries. Reconstruct the full call graph for any distributed request.",
   },
 ];
 
@@ -562,10 +565,10 @@ function UseCasesSection() {
             Use Cases
           </Badge>
           <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-            Built for real-world systems
+            Built for real-world engineering teams
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-muted-foreground">
-            From small internal tools to large enterprise platforms.
+            From solo projects to large-scale distributed systems.
           </p>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -596,33 +599,33 @@ function UseCasesSection() {
 const SECURITY_ITEMS = [
   {
     icon: RefreshCw,
-    title: "Token Rotation",
-    desc: "Automatic refresh token rotation with configurable TTL and instant revocation support.",
-  },
-  {
-    icon: Shield,
-    title: "Role Enforcement",
-    desc: "Server-side permission checks on every protected action and route via ZSA procedures.",
-  },
-  {
-    icon: Database,
-    title: "Persistent Sessions",
-    desc: "Database-backed sessions with 60 s cookie caching for performance without sacrificing accuracy.",
+    title: "API Key Rotation",
+    desc: "Revoke and regenerate API keys instantly. Scoped per application and environment with no service disruption.",
   },
   {
     icon: Lock,
-    title: "Audit Support",
-    desc: "Track authentication events and permission changes with database hooks and middleware.",
+    title: "Plan Limit Enforcement",
+    desc: "Monthly event quotas enforced at the gateway — server-side only. Clients cannot influence or bypass the check.",
+  },
+  {
+    icon: Database,
+    title: "Tenant Data Isolation",
+    desc: "All events are partitioned by organisation ID in ClickHouse. One tenant cannot access another's data.",
+  },
+  {
+    icon: Shield,
+    title: "Immutable Audit Log",
+    desc: "Audit events are append-only. No update or delete paths exist in the ingestion pipeline.",
   },
   {
     icon: Zap,
-    title: "Scalable Architecture",
-    desc: "Clean Architecture with DI container. Swap infrastructure adapters without touching business logic.",
+    title: "Fail-Open Reliability",
+    desc: "ClickHouse downtime never blocks ingestion. The gateway fails open so events keep flowing.",
   },
   {
     icon: Users,
-    title: "Multi-Factor Auth",
-    desc: "Email OTP 2FA and magic link authentication available for sensitive admin operations.",
+    title: "Role-Based Console Access",
+    desc: "Console access gated by organisation membership. Team members only see the data their org owns.",
   },
 ];
 
@@ -638,8 +641,8 @@ function SecuritySection() {
             Secure by design
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-muted-foreground">
-            Every layer of the platform is designed with security and
-            predictability in mind.
+            Every layer of the platform is built with security and predictability
+            in mind — from ingestion to storage to access control.
           </p>
         </div>
         <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
@@ -669,39 +672,38 @@ function CtaSection({ session }: { session: TServerSession }) {
     <section className="py-20">
       <div className="mx-auto max-w-3xl px-4 sm:px-6">
         <Card className="overflow-hidden border text-center shadow-xl">
-          {/* Subtle top accent */}
           <div className="h-1 w-full bg-gradient-to-r from-primary/40 via-primary to-primary/40" />
           <CardContent className="px-8 py-12">
             <div className="mb-5 flex justify-center">
               <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
-                <ShieldCheck className="h-7 w-7 text-primary" />
+                <Activity className="h-7 w-7 text-primary" />
               </div>
             </div>
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-              Start integrating IAM into your applications
+              Start observing your applications today
             </h2>
             <p className="mx-auto mt-4 max-w-md text-muted-foreground">
-              Your authentication and authorization infrastructure, ready to
-              use.
+              Free tier includes 100,000 events per month. No credit card
+              required to get started.
             </p>
             <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
               {session ? (
                 <Button asChild size="lg">
                   <Link href="/admin">
                     <LayoutDashboard className="h-4 w-4" />
-                    Access Platform
+                    Open Console
                   </Link>
                 </Button>
               ) : (
                 <>
                   <Button asChild size="lg">
-                    <Link href="/auth/sign-in">
-                      Access Platform
+                    <Link href="/auth/sign-up">
+                      Create Free Account
                       <ArrowRight className="h-4 w-4" />
                     </Link>
                   </Button>
                   <Button asChild variant="outline" size="lg">
-                    <Link href="/auth/sign-up">Create Account</Link>
+                    <Link href="/auth/sign-in">Sign In</Link>
                   </Button>
                 </>
               )}
@@ -730,10 +732,10 @@ function FooterSection() {
         <div className="flex flex-col items-center justify-between gap-5 sm:flex-row">
           <div className="flex items-center gap-2">
             <div className="flex h-6 w-6 items-center justify-center rounded-md bg-foreground">
-              <ShieldCheck className="h-3.5 w-3.5 text-background" />
+              <Activity className="h-3.5 w-3.5 text-background" />
             </div>
             <span className="text-sm font-semibold tracking-tight">
-              AlphaesAI IAM
+              Watcher24
             </span>
           </div>
           <nav className="flex flex-wrap justify-center gap-x-6 gap-y-2">
@@ -748,7 +750,7 @@ function FooterSection() {
             ))}
           </nav>
           <p className="text-xs text-muted-foreground">
-            © {new Date().getFullYear()} AlphaesAI
+            © {new Date().getFullYear()} Watcher24
           </p>
         </div>
       </div>

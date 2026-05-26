@@ -33,16 +33,16 @@ export async function AuthLayout({ children }: AuthLayoutProps) {
           {/* Middle — tagline */}
           <div className="relative z-10 space-y-4">
             <h2 className="text-[2rem] font-bold leading-tight tracking-tight text-foreground">
-              Identity infrastructure for modern healthcare
+              Observability infrastructure for modern applications
             </h2>
             <p className="text-base leading-relaxed text-muted-foreground">
-              Secure authentication for apps, services, and devices.
+              Ingest logs, metrics, traces, and audit events from every service in real time.
             </p>
           </div>
 
           {/* Bottom — copyright */}
           <p className="relative z-10 text-xs text-muted-foreground">
-            © {new Date().getFullYear()} AlphaesAI. All rights reserved.
+            © {new Date().getFullYear()} Watcher24. All rights reserved.
           </p>
         </div>
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ShieldCheck, LayoutDashboard, LogOut, Loader2 } from "lucide-react";
+import { Activity, LayoutDashboard, LogOut, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
@@ -55,9 +55,9 @@ export function PublicNavbar({ session }: PublicNavbarProps) {
           className="flex items-center gap-2 text-sm font-semibold tracking-tight"
         >
           <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-foreground">
-            <ShieldCheck className="h-4 w-4 text-background" />
+            <Activity className="h-4 w-4 text-background" />
           </div>
-          <span>AlphaesAI</span>
+          <span>Watcher24</span>
         </Link>
 
         {/* Right side */}
