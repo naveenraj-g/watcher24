@@ -44,7 +44,7 @@ func NewServer(
 	app.Use(cors.New(cors.Config{
 		AllowOriginsFunc: func(origin string) bool { return true }, // any origin allowed; key-based auth is the gate
 		AllowMethods:     "GET,POST,OPTIONS",
-		AllowHeaders:     "Authorization,Content-Type,X-API-Key,X-App-Id,X-Environment,X-SDK-Version",
+		AllowHeaders:     "Authorization,Content-Type,X-API-Key,X-App-Id,X-Environment,X-SDK-Version,X-Service-Name,X-Runtime,X-Trace-Id",
 		MaxAge:           86400, // cache preflight for 24 h
 	}))
 	app.Use(logger.New(logger.Config{

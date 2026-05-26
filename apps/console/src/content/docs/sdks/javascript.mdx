@@ -16,16 +16,16 @@ The Watcher24 JavaScript SDK is split into focused packages. Pick the one that m
 
 ## Installation
 
-```bash
-# Node.js server
-npm install @watcher/node
+**Node.js server**
 
-# React SPA
-npm install @watcher/browser @watcher/react
+<PackageTabs pkg="@watcher/node" />
 
-# Next.js
-npm install @watcher/nextjs
-```
+**Browser / React SPA**
+
+<PackageTabs pkg="@watcher/browser" />
+<PackageTabs pkg="@watcher/react" />
+
+**Next.js** — see the [Next.js integration guide →](/docs/sdks/nextjs)
 
 ## Node.js
 
@@ -39,9 +39,11 @@ import { createNodeClient } from "@watcher/node";
 
 export const watcher = createNodeClient({
   apiKey: process.env.W24_API_KEY!,
-  appId: process.env.W24_APP_ID ?? "my-service",
+  // serviceName labels this component in the dashboard — useful when multiple
+  // services send to the same app (e.g. "payment-api", "auth-worker").
+  serviceName: process.env.W24_SERVICE_NAME,   // optional
   environment: process.env.NODE_ENV ?? "production",
-  gatewayUrl: process.env.W24_GATEWAY_URL, // optional
+  gatewayUrl: process.env.W24_GATEWAY_URL,     // optional
 });
 
 process.on("SIGTERM", () => watcher.shutdown());
@@ -50,8 +52,9 @@ process.on("SIGINT",  () => watcher.shutdown());
 
 | Option | Type | Required | Description |
 |--------|------|----------|-------------|
-| `apiKey` | `string` | Yes | Organisation API key (starts with `wt_`) |
-| `appId` | `string` | Yes | Identifies which application sent the event |
+| `apiKey` | `string` | Yes | Server API key (starts with `wt_`) |
+| `appId` | `string` | No | Only needed for legacy org-level keys. App-scoped keys resolve the application automatically. |
+| `serviceName` | `string` | No | Label the sending component (e.g. `"payment-api"`, `"ai-agent"`). Stored for filtering in the dashboard. |
 | `environment` | `string` | No | Defaults to `"production"` |
 | `gatewayUrl` | `string` | No | Override the ingest endpoint |
 | `flushInterval` | `number` | No | Flush interval in ms (default `500`) |
@@ -116,21 +119,26 @@ await watcher.shutdown(); // flush then stop the background flusher
 
 ## Browser
 
-Use `createBrowserClient` from `@watcher/browser`. The browser transport uses `fetch` and automatically registers a `sendBeacon` flush on `visibilitychange` to flush events when the page is hidden.
+Use `createBrowserClient` from `@watcher/browser` with a **public token** (`wpub_` prefix).
+Public tokens are safe to ship in browser bundles — the gateway enforces an origin allowlist
+and a per-minute rate limit so a leaked token cannot be abused at scale.
 
 ```typescript
 import { createBrowserClient } from "@watcher/browser";
 
 const watcher = createBrowserClient({
-  apiKey: import.meta.env.VITE_W24_API_KEY!,
-  appId: "my-app",
+  apiKey: import.meta.env.VITE_W24_PUBLIC_TOKEN!,  // starts with wpub_
+  serviceName: "my-app-browser",  // optional — shown in the Service column
+  environment: import.meta.env.MODE,
 });
 
 watcher.audit("button.clicked", { userId, payload: { label: "upgrade" } });
 ```
 
-<Callout type="warning" title="Use a write-only public key">
-Never expose your server API key in browser bundles. Create a separate write-only key for browser use and store it in a `VITE_W24_API_KEY` or `NEXT_PUBLIC_W24_API_KEY` env var.
+<Callout type="warning" title="Use a public token (wpub_) for the browser — never a secret key">
+Create a public token in **Settings → API Keys → Public Tokens** and store it in `VITE_W24_PUBLIC_TOKEN`.
+Public tokens are write-only and tied to an origin allowlist. Secret `wt_` keys must never appear in browser bundles.
+Events from public tokens are automatically tagged `source: "client"` in the dashboard.
 </Callout>
 
 ## React
@@ -143,8 +151,9 @@ import { createBrowserClient } from "@watcher/browser";
 import { WatcherProvider } from "@watcher/react";
 
 const watcher = createBrowserClient({
-  apiKey: import.meta.env.VITE_W24_API_KEY!,
-  appId: "my-app",
+  apiKey: import.meta.env.VITE_W24_PUBLIC_TOKEN!,
+  serviceName: "my-react-app",  // optional
+  environment: import.meta.env.MODE,
 });
 
 <WatcherProvider client={watcher}>
@@ -215,13 +224,15 @@ client.shutdown(): Promise<void>
 ```bash
 # Server-side (never expose to the browser)
 W24_API_KEY=wt_...
-W24_APP_ID=my-service
+W24_SERVICE_NAME=my-api          # optional — component label for filtering
 W24_GATEWAY_URL=http://localhost:8080   # optional
 W24_ENVIRONMENT=production              # optional
 
-# Browser / Next.js public (write-only key)
-NEXT_PUBLIC_W24_API_KEY=wt_pub_...
-NEXT_PUBLIC_W24_GATEWAY_URL=https://ingest.watcher24.io
-VITE_W24_API_KEY=wt_pub_...
+# Browser / Vite (public token — safe to expose)
+VITE_W24_PUBLIC_TOKEN=wpub_...
 VITE_W24_GATEWAY_URL=https://ingest.watcher24.io
+
+# Browser / Next.js (public token — safe to expose)
+NEXT_PUBLIC_W24_PUBLIC_TOKEN=wpub_...
+NEXT_PUBLIC_W24_GATEWAY_URL=https://ingest.watcher24.io
 ```

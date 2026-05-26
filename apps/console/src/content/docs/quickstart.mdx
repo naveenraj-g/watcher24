@@ -44,7 +44,8 @@ import { createNodeClient } from "@watcher/node";
 
 const watcher = createNodeClient({
   apiKey: process.env.W24_API_KEY!,
-  appId: "my-app",
+  // serviceName is optional — labels the component in the dashboard
+  // serviceName: "my-api",
 });
 
 // Flush buffered events before process exit

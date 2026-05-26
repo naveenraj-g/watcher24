@@ -33,7 +33,9 @@ export const watcher =
   globalThis.__watcher ??
   (globalThis.__watcher = createNextServerClient({
     apiKey: process.env.W24_API_KEY!,
-    appId: process.env.W24_APP_ID ?? "console",
+    // serviceName labels this component in the dashboard — useful when you
+    // have multiple Next.js apps or want to separate server from browser events.
+    serviceName: "nextjs-server",  // optional
     environment: process.env.NODE_ENV === "production" ? "production" : "development",
   }));
 ```
@@ -77,7 +79,7 @@ import { watcherMiddleware } from "@watcher/nextjs";
 
 export const middleware = watcherMiddleware({
   apiKey: process.env.W24_API_KEY!,
-  appId: process.env.W24_APP_ID ?? "console",
+  // appId only needed for legacy org-level keys — app-scoped keys resolve automatically.
 });
 
 export const config = { matcher: ["/api/:path*"] };
@@ -87,7 +89,7 @@ The middleware automatically emits a `trace` event for every matched request wit
 
 ## Client Components
 
-For browser-side events, use the context provider and hooks from `@watcher/nextjs/client`.
+For browser-side events, use a **public token** (`wpub_` prefix) — never a server key. Create one in **Settings → API Keys → Public Tokens**.
 
 ```tsx
 // app/providers.tsx
@@ -96,8 +98,10 @@ import { createBrowserClient } from "@watcher/browser";
 import { WatcherProvider } from "@watcher/nextjs/client";
 
 const browserClient = createBrowserClient({
-  apiKey: process.env.NEXT_PUBLIC_W24_API_KEY!,
-  appId: process.env.NEXT_PUBLIC_W24_APP_ID ?? "console-browser",
+  apiKey: process.env.NEXT_PUBLIC_W24_PUBLIC_TOKEN!,  // starts with wpub_
+  // serviceName lets you distinguish browser events from server events in the dashboard.
+  serviceName: "nextjs-browser",  // optional
+  environment: process.env.NODE_ENV === "production" ? "production" : "development",
 });
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -125,8 +129,10 @@ export function UpgradeButton({ userId }: { userId: string }) {
 }
 ```
 
-<Callout type="warning" title="Use a separate write-only key for the browser">
-The browser SDK uses `NEXT_PUBLIC_W24_API_KEY`. Create a separate write-only API key for browser use — if it leaks it can only write events, not read data.
+<Callout type="warning" title="Use a public token (wpub_) for the browser — never a secret key">
+Create a public token in **Settings → API Keys → Public Tokens** and store it in `NEXT_PUBLIC_W24_PUBLIC_TOKEN`.
+Public tokens are write-only and tied to an origin allowlist — a leaked token cannot read data or be used from unlisted origins.
+Browser events are automatically tagged `source: "client"` in the dashboard; server events are tagged `source: "server"`.
 </Callout>
 
 ## Environment variables
@@ -136,11 +142,9 @@ The browser SDK uses `NEXT_PUBLIC_W24_API_KEY`. Create a separate write-only API
 
 # Server-only — never exposed to the browser
 W24_API_KEY=wt_...
-W24_APP_ID=my-app
 W24_GATEWAY_URL=https://ingest.watcher24.io   # optional
 
-# Browser-safe — write-only key
-NEXT_PUBLIC_W24_API_KEY=wt_pub_...
-NEXT_PUBLIC_W24_APP_ID=my-app-browser
+# Browser-safe — public token (write-only, origin-restricted)
+NEXT_PUBLIC_W24_PUBLIC_TOKEN=wpub_...
 NEXT_PUBLIC_W24_GATEWAY_URL=https://ingest.watcher24.io
 ```
