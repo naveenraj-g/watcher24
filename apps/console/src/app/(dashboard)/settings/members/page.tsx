@@ -93,7 +93,13 @@ export default function MembersPage() {
   });
 
   const roleMutation = useMutation({
-    mutationFn: async ({ memberId, role }: { memberId: string; role: Role }) => {
+    mutationFn: async ({
+      memberId,
+      role,
+    }: {
+      memberId: string;
+      role: Role;
+    }) => {
       const { error } = await authClient.organization.updateMemberRole({
         memberId,
         role,
@@ -163,7 +169,7 @@ export default function MembersPage() {
                 value={inviteRole}
                 onValueChange={(v) => setInviteRole(v as Role)}
               >
-                <SelectTrigger className="h-8 w-28 text-sm">
+                <SelectTrigger className="h-8 w-28 text-sm" size="sm">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -173,7 +179,7 @@ export default function MembersPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex items-end">
+            <div className="flex self-end items-center pb-1">
               <Button type="submit" size="sm" disabled={inviting}>
                 {inviting ? "Sending…" : "Invite"}
               </Button>
@@ -194,7 +200,8 @@ export default function MembersPage() {
             )}
           </CardTitle>
           <CardDescription>
-            Owners can manage billing and org settings. Admins can manage members.
+            Owners can manage billing and org settings. Admins can manage
+            members.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -232,7 +239,10 @@ export default function MembersPage() {
                       {member.user.email}
                     </p>
                   </div>
-                  <Badge variant="secondary" className="text-xs capitalize shrink-0">
+                  <Badge
+                    variant="secondary"
+                    className="text-xs capitalize shrink-0"
+                  >
                     {ROLE_LABELS[member.role] ?? member.role}
                   </Badge>
                   <DropdownMenu>
