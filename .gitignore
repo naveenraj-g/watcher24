@@ -46,3 +46,5 @@ infrastructure/postgres/data/
 skills-lock.json
 
 logs
+
+.commandcode

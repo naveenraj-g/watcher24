@@ -21,6 +21,26 @@ down:
 logs:
     docker compose logs -f
 
+# ── Database Migrations ───────────────────────────────────────────────────────
+# Note: docker-entrypoint-initdb.d only fires on a fresh volume (first-ever start).
+# Use these recipes to apply migrations against an already-running stack.
+
+# Apply all Postgres migrations in order
+migrate-pg:
+    docker exec -e PGPASSWORD=watcher_secret -i watcher_postgres psql -U watcher -d watcher < infrastructure/postgres/migrations/001_init.sql
+    docker exec -e PGPASSWORD=watcher_secret -i watcher_postgres psql -U watcher -d watcher < infrastructure/postgres/migrations/002_app_api_key_scope.sql
+
+# Apply all ClickHouse migrations in order
+migrate-ch:
+    docker exec -i watcher_clickhouse clickhouse-client --user watcher --password watcher_secret --multiquery < infrastructure/clickhouse/migrations/001_init.sql
+    docker exec -i watcher_clickhouse clickhouse-client --user watcher --password watcher_secret --multiquery < infrastructure/clickhouse/migrations/002_add_source.sql
+    docker exec -i watcher_clickhouse clickhouse-client --user watcher --password watcher_secret --multiquery < infrastructure/clickhouse/migrations/003_add_service_name.sql
+
+# Apply all migrations (Postgres + ClickHouse)
+migrate:
+    just migrate-pg
+    just migrate-ch
+
 # ── Gateway (Go) ──────────────────────────────────────────────────────────────
 
 # Run the Go gateway
