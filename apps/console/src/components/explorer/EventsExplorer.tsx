@@ -5,6 +5,9 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { parseAsStringLiteral, useQueryState } from "nuqs";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
+import { resolveTimeRange, DEFAULT_RANGE, type TimeRangeKey } from "@/lib/time-range";
 import {
   type ColumnDef,
   getCoreRowModel,
@@ -45,6 +48,8 @@ interface EventsExplorerProps {
   appId?: string | null;
 }
 
+const PRESET_KEYS = ["15m", "1h", "4h", "24h", "7d", "30d"] as TimeRangeKey[];
+
 export function EventsExplorer({
   orgId,
   eventType,
@@ -59,13 +64,22 @@ export function EventsExplorer({
   const [selectedEvent, setSelectedEvent] = useState<EventRow | null>(null);
   const PAGE_SIZE = 50;
 
+  // Range is shared with the overview page via URL so navigating back preserves it.
+  const [range] = useQueryState(
+    "range",
+    parseAsStringLiteral(PRESET_KEYS).withDefault(DEFAULT_RANGE),
+  );
+  const { from, to } = resolveTimeRange(range);
+
   const { data, isFetching, refetch } = useQuery<EventRow[]>({
-    queryKey: [apiPath, orgId, eventType, appId, search, severity, source, serviceName, page],
+    queryKey: [apiPath, orgId, eventType, appId, search, severity, source, serviceName, page, range],
     queryFn: async () => {
       const params = new URLSearchParams({
         orgId,
         limit: String(PAGE_SIZE),
         offset: String(page * PAGE_SIZE),
+        from,
+        to,
       });
       if (appId) params.set("appId", appId);
       if (search) params.set("search", search);
@@ -204,6 +218,7 @@ export function EventsExplorer({
       <div className="space-y-4">
         {/* Filters */}
         <div className="flex flex-wrap gap-3">
+          <DateRangePicker />
           <div className="relative flex-1 min-w-48">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input

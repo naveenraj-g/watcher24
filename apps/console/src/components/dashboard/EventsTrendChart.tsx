@@ -17,10 +17,19 @@ import type { HourlyBucket } from "@/lib/clickhouse";
 
 interface EventsTrendChartProps {
   data: HourlyBucket[];
+  title?: string;
 }
 
-export function EventsTrendChart({ data }: EventsTrendChartProps) {
-  // Sort by hour string so the x-axis always reads 00:00 → 23:00
+// formatBucketLabel converts a ClickHouse bucket string to a short axis label.
+// Hourly format "2026-05-30 14:00:00" → "14:00"
+// Daily  format "2026-05-30"          → "5/30"
+function formatBucketLabel(v: string): string {
+  if (v.includes(" ")) return v.slice(11, 16); // HH:00
+  const d = new Date(v + "T00:00:00");
+  return `${d.getMonth() + 1}/${d.getDate()}`;
+}
+
+export function EventsTrendChart({ data, title = "Events over time" }: EventsTrendChartProps) {
   const chartData = useMemo(
     () =>
       [...data]
@@ -32,7 +41,7 @@ export function EventsTrendChart({ data }: EventsTrendChartProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-sm font-medium">Events over 24 h</CardTitle>
+        <CardTitle className="text-sm font-medium">{title}</CardTitle>
       </CardHeader>
       <CardContent>
         {chartData.length === 0 ? (
@@ -53,7 +62,7 @@ export function EventsTrendChart({ data }: EventsTrendChartProps) {
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-              <XAxis dataKey="hour" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
+              <XAxis dataKey="hour" tickFormatter={formatBucketLabel} tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
               <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
               <Tooltip
                 contentStyle={{ fontSize: 12, borderRadius: 6, border: "1px solid var(--border)", background: "var(--card)" }}

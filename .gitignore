@@ -45,6 +45,6 @@ infrastructure/postgres/data/
 .claude
 skills-lock.json
 
-logs
+/logs
 
 .commandcode

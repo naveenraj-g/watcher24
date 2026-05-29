@@ -89,10 +89,17 @@ export interface GeoCountBucket {
   unique_users: number;
 }
 
-// queryOverviewStats returns aggregate counts for the last 24 hours for one org.
+// queryOverviewStats returns aggregate counts for a time range for one org.
+// from/to are ISO timestamp strings; when omitted the last 24 hours are used.
 export async function queryOverviewStats(
   orgId: string,
+  opts?: { from?: string; to?: string },
 ): Promise<OverviewStats> {
+  const fromClause = opts?.from
+    ? "AND timestamp >= {from: DateTime64(3)}"
+    : "AND timestamp >= now() - INTERVAL 24 HOUR";
+  const toClause = opts?.to ? "AND timestamp <= {to: DateTime64(3)}" : "";
+
   const result = await clickhouse.query({
     query: `
       SELECT
@@ -106,9 +113,14 @@ export async function queryOverviewStats(
         uniqExact(application_id)                       AS unique_apps
       FROM watcher.events
       WHERE organization_id = {orgId: String}
-        AND timestamp >= now() - INTERVAL 24 HOUR
+        ${fromClause}
+        ${toClause}
     `,
-    query_params: { orgId },
+    query_params: {
+      orgId,
+      ...(opts?.from ? { from: opts.from } : {}),
+      ...(opts?.to   ? { to:   opts.to   } : {}),
+    },
     format: "JSONEachRow",
   });
 
@@ -127,23 +139,46 @@ export async function queryOverviewStats(
   );
 }
 
-// queryHourlyBuckets returns per-hour event counts for the last 24 h chart.
+// queryHourlyBuckets returns time-bucketed event counts for the trend chart.
+// Auto-selects hourly buckets for ranges ≤ 48 h, daily for longer ranges so
+// the chart stays readable regardless of the selected time window.
+// from/to are ISO timestamp strings; when omitted the last 24 hours are used.
 export async function queryHourlyBuckets(
   orgId: string,
+  opts?: { from?: string; to?: string },
 ): Promise<HourlyBucket[]> {
+  const fromClause = opts?.from
+    ? "AND timestamp >= {from: DateTime64(3)}"
+    : "AND timestamp >= now() - INTERVAL 24 HOUR";
+  const toClause = opts?.to ? "AND timestamp <= {to: DateTime64(3)}" : "";
+
+  // Choose bucket granularity based on range duration.
+  const fromMs = opts?.from ? new Date(opts.from).getTime() : Date.now() - 86_400_000;
+  const toMs   = opts?.to   ? new Date(opts.to).getTime()   : Date.now();
+  const hours  = (toMs - fromMs) / 3_600_000;
+  // Full ISO-compatible format so EventsTrendChart can parse with new Date().
+  const bucketExpr = hours > 48
+    ? "formatDateTime(toStartOfDay(timestamp),  '%Y-%m-%d')"
+    : "formatDateTime(toStartOfHour(timestamp), '%Y-%m-%d %H:00:00')";
+
   const result = await clickhouse.query({
     query: `
       SELECT
-        formatDateTime(toStartOfHour(timestamp), '%H:00') AS hour,
+        ${bucketExpr}                                     AS hour,
         count()                                           AS count,
         countIf(severity IN ('error','critical'))         AS error_count
       FROM watcher.events
       WHERE organization_id = {orgId: String}
-        AND timestamp >= now() - INTERVAL 24 HOUR
+        ${fromClause}
+        ${toClause}
       GROUP BY hour
       ORDER BY hour ASC
     `,
-    query_params: { orgId },
+    query_params: {
+      orgId,
+      ...(opts?.from ? { from: opts.from } : {}),
+      ...(opts?.to   ? { to:   opts.to   } : {}),
+    },
     format: "JSONEachRow",
   });
 
@@ -256,28 +291,37 @@ export async function queryEvents(opts: {
   return result.json<EventRow>();
 }
 
-// queryGeoDistribution returns per-country event and unique-user counts for the
-// last 24 hours.  The region column stores ISO alpha-2 codes set by the gateway
-// GeoIP resolver — rows with an empty region (private IPs or pre-GeoIP events)
-// are excluded so they don't pollute the choropleth map.
+// queryGeoDistribution returns per-country event and unique-user counts.
+// from/to are ISO timestamp strings; when omitted the last 24 hours are used.
 export async function queryGeoDistribution(
   orgId: string,
+  opts?: { from?: string; to?: string },
 ): Promise<GeoCountBucket[]> {
+  const fromClause = opts?.from
+    ? "AND timestamp >= {from: DateTime64(3)}"
+    : "AND timestamp >= now() - INTERVAL 24 HOUR";
+  const toClause = opts?.to ? "AND timestamp <= {to: DateTime64(3)}" : "";
+
   const result = await clickhouse.query({
     query: `
       SELECT
         region,
-        count()           AS event_count,
+        count()            AS event_count,
         uniqExact(user_id) AS unique_users
       FROM watcher.events
       WHERE organization_id = {orgId: String}
-        AND timestamp >= now() - INTERVAL 24 HOUR
+        ${fromClause}
+        ${toClause}
         AND region != ''
         AND length(region) = 2
       GROUP BY region
       ORDER BY event_count DESC
     `,
-    query_params: { orgId },
+    query_params: {
+      orgId,
+      ...(opts?.from ? { from: opts.from } : {}),
+      ...(opts?.to   ? { to:   opts.to   } : {}),
+    },
     format: "JSONEachRow",
   });
 
