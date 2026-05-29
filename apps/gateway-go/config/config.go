@@ -20,8 +20,11 @@ type Config struct {
 	// Env is the deployment environment name: development, staging, production.
 	Env string
 
-	// Region is a tag added to every ingested event for routing and filtering.
-	Region string
+	// DefaultCountry is the ISO alpha-2 fallback used when GeoIP cannot resolve
+	// the client IP (e.g. loopback / private addresses in local development).
+	// Set GATEWAY_DEFAULT_COUNTRY=IN in .env for local dev; leave empty in
+	// production so only real GeoIP results reach the map.
+	DefaultCountry string
 
 	// IAMDatabaseURL is the PostgreSQL connection string for the IAM database.
 	// The gateway uses this to validate API keys (read-only queries).
@@ -49,9 +52,9 @@ func Load() *Config {
 	}
 
 	return &Config{
-		Port:               getEnv("GATEWAY_PORT", "8080"),
-		Env:                getEnv("GATEWAY_ENV", "development"),
-		Region:             getEnv("GATEWAY_REGION", "local"),
+		Port:           getEnv("GATEWAY_PORT", "8080"),
+		Env:            getEnv("GATEWAY_ENV", "development"),
+		DefaultCountry: getEnv("GATEWAY_DEFAULT_COUNTRY", ""),
 		IAMDatabaseURL:     getEnv("IAM_DATABASE_URL", "postgresql://watcher:watcher_secret@localhost:5433/iam"),
 		RedisURL:           getEnv("REDIS_URL", "redis://localhost:6379"),
 		ClickhouseURL:      getEnv("CLICKHOUSE_URL", "http://localhost:8123"),

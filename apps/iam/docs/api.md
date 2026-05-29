@@ -137,4 +137,44 @@ The endpoint verifies `keyType = "public"` before deleting. It will not delete s
 | Status | Meaning |
 |--------|---------|
 | 400 | `id` query param missing |
+
+---
+
+## Organisation Activation
+
+### POST /api/internal/organization/set-active
+
+Atomically sets the user's active organisation in **both** the better-auth session
+(browser cookie) **and** the `userContext` table (gateway key resolution).
+
+Calling only `better-auth /set-active` leaves `userContext.activeOrganizationId`
+as NULL, causing the gateway to publish API-key events to the wrong Redis channel
+and breaking the live feed and dashboard charts for server-side SDK keys.
+
+**Auth:** User session — forward the caller's `cookie` and/or `Authorization: Bearer`
+headers. This endpoint acts on behalf of the authenticated user, not as a service
+secret.
+
+**Request body:**
+
+```json
+{ "organizationId": "org_abc123" }
+```
+
+**Response (200):**
+
+```json
+{ "organizationId": "org_abc123" }
+```
+
+The response also forwards any `Set-Cookie` headers from better-auth so the
+console can relay them to the browser.
+
+**Error responses:**
+
+| Status | Meaning |
+|--------|---------|
+| 400 | `organizationId` missing |
+| 401 | No valid session or Bearer token |
+| 403 | User is not a member of the requested organisation |
 | 404 | Token not found or is not a public token |

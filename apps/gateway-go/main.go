@@ -22,6 +22,7 @@ import (
 
 	"watcher24/gateway/config"
 	chadapter "watcher24/gateway/internal/adapters/clickhouse"
+	geoadapter "watcher24/gateway/internal/adapters/geoip"
 	pgadapter "watcher24/gateway/internal/adapters/postgres"
 	redisadapter "watcher24/gateway/internal/adapters/redis"
 	"watcher24/gateway/internal/transport"
@@ -75,15 +76,21 @@ func main() {
 	// have no knowledge of Redis or Postgres — only the contracts.
 	ingestUC := usecases.NewIngestEventUseCase(redisAdapter, chAdapter)
 
-	// ── 4. Create handlers ────────────────────────────────────────────────────
-	eventsHandler := handlers.NewEventsHandler(ingestUC, rateLimiterAdapter, cfg.Region)
+	// ── 4. Create adapters (continued) ───────────────────────────────────────
+	// GeoIP resolver — resolves client IPs to ISO alpha-2 country codes.
+	// Uses ip-api.com with a 24-hour in-memory cache; private IPs are skipped.
+	geoResolver := geoadapter.NewHTTPGeoResolver()
+	log.Println("gateway: geo resolver ready")
+
+	// ── 5. Create handlers ────────────────────────────────────────────────────
+	eventsHandler := handlers.NewEventsHandler(ingestUC, rateLimiterAdapter, geoResolver, cfg.DefaultCountry)
 	healthHandler := handlers.NewHealthHandler(redisAdapter, pgAdapter)
 
-	// ── 5. Build server ───────────────────────────────────────────────────────
+	// ── 6. Build server ───────────────────────────────────────────────────────
 	// pgAdapter implements both ports.KeyValidator and HealthChecker.
 	server := transport.NewServer(pgAdapter, eventsHandler, healthHandler)
 
-	// ── 6. Start with graceful shutdown ───────────────────────────────────────
+	// ── 7. Start with graceful shutdown ───────────────────────────────────────
 	// Run the server in a goroutine so we can listen for OS signals.
 	go func() {
 		if err := server.Start(":" + cfg.Port); err != nil {

@@ -58,12 +58,18 @@ export async function POST(request: Request) {
 
   const orgId: string = createData.id;
 
-  // Step 2: set the new org as the active org in the session / user context.
-  const setActiveRes = await fetch(`${iamUrl}/api/auth/organization/set-active`, {
-    method: "POST",
-    headers: authHeaders,
-    body: JSON.stringify({ organizationId: orgId }),
-  });
+  // Step 2: activate the org — calls the IAM internal endpoint which does both:
+  //   a) better-auth set-active  → updates the session cookie
+  //   b) userContext upsert      → updates activeOrganizationId so the gateway
+  //                                can resolve API-key → org_id correctly
+  const setActiveRes = await fetch(
+    `${iamUrl}/api/internal/organization/set-active`,
+    {
+      method: "POST",
+      headers: authHeaders,
+      body: JSON.stringify({ organizationId: orgId }),
+    },
+  );
 
   if (!setActiveRes.ok) {
     const errData = await setActiveRes.json().catch(() => ({}));
@@ -73,5 +79,12 @@ export async function POST(request: Request) {
     );
   }
 
-  return NextResponse.json({ orgId });
+  // Forward any Set-Cookie headers from the IAM response so the browser session
+  // cookie is updated to reflect the newly active organisation.
+  const response = NextResponse.json({ orgId });
+  const setCookie = setActiveRes.headers.get("set-cookie");
+  if (setCookie) {
+    response.headers.set("set-cookie", setCookie);
+  }
+  return response;
 }

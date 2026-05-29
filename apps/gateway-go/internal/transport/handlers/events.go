@@ -33,16 +33,17 @@ type eventRequest struct {
 
 // EventsHandler handles all telemetry ingestion endpoints.
 type EventsHandler struct {
-	ingestUC    *usecases.IngestEventUseCase
-	rateLimiter ports.MinuteRateLimiter
-	region      string
+	ingestUC       *usecases.IngestEventUseCase
+	rateLimiter    ports.MinuteRateLimiter
+	geoResolver    ports.GeoResolver
+	defaultCountry string // fallback ISO alpha-2 for private/loopback IPs (local dev)
 }
 
 // NewEventsHandler creates the handler with its required dependencies.
-// rateLimiter enforces per-minute caps for public tokens; it is never called
-// for secret API keys. region is the server's region tag added to every event.
-func NewEventsHandler(ingestUC *usecases.IngestEventUseCase, rateLimiter ports.MinuteRateLimiter, region string) *EventsHandler {
-	return &EventsHandler{ingestUC: ingestUC, rateLimiter: rateLimiter, region: region}
+// defaultCountry is used when GeoIP cannot resolve the client IP — set it to
+// your ISO alpha-2 code in local dev so the map shows data without real traffic.
+func NewEventsHandler(ingestUC *usecases.IngestEventUseCase, rateLimiter ports.MinuteRateLimiter, geoResolver ports.GeoResolver, defaultCountry string) *EventsHandler {
+	return &EventsHandler{ingestUC: ingestUC, rateLimiter: rateLimiter, geoResolver: geoResolver, defaultCountry: defaultCountry}
 }
 
 // HandleEvents handles POST /v1/events — accepts single event or batch (array).
@@ -169,11 +170,14 @@ func (h *EventsHandler) buildInput(req eventRequest, orgID, appID, forcedType st
 		Payload:            req.Payload,
 		Source:             eventSource,
 		ServiceName:        c.Get("X-Service-Name"),
-		// Enrichment from HTTP context
+		// Enrichment from HTTP context — Region is the ISO alpha-2 country code
+		// resolved from the client IP via GeoIP. Private/loopback IPs (local dev)
+		// return "" from the resolver; fall back to the configured default so the
+		// dashboard map shows data even when running on localhost.
 		IPAddress:  c.IP(),
 		SDKVersion: c.Get("X-SDK-Version"),
 		Runtime:    c.Get("X-Runtime"),
-		Region:     h.region,
+		Region:     h.resolveRegion(c),
 	}
 }
 
@@ -198,4 +202,19 @@ func respondError(c *fiber.Ctx, status int, message, code string) error {
 		"error": message,
 		"code":  code,
 	})
+}
+
+// resolveRegion returns an ISO alpha-2 country code for the request.
+// It tries X-Forwarded-For first (set by proxies/CDNs), then the direct client
+// IP. If GeoIP returns "" (private/loopback), it falls back to defaultCountry.
+func (h *EventsHandler) resolveRegion(c *fiber.Ctx) string {
+	// Prefer the real client IP forwarded by a proxy or CDN.
+	ip := c.Get("X-Forwarded-For")
+	if ip == "" {
+		ip = c.IP()
+	}
+	if code := h.geoResolver.Resolve(c.Context(), ip); code != "" {
+		return code
+	}
+	return h.defaultCountry
 }

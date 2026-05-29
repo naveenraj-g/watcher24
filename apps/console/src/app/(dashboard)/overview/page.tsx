@@ -1,10 +1,13 @@
-// Overview page — the dashboard home.  Shows 24-hour KPI cards, an events-over-
-// time chart, and the live WebSocket feed.  All heavy data is fetched server-side
-// from ClickHouse; the live feed is client-only.
+// Overview page — dashboard home.
+// All data is fetched server-side from ClickHouse in parallel.
+// Client components receive plain serialisable props.
 import { getServerSession } from "@/lib/auth-server";
-import { queryOverviewStats, queryHourlyBuckets } from "@/lib/clickhouse";
+import { queryOverviewStats, queryHourlyBuckets, queryGeoDistribution } from "@/lib/clickhouse";
 import { StatsCards } from "@/components/dashboard/StatsCards";
-import { EventsChart } from "@/components/dashboard/EventsChart";
+import { EventsTrendChart } from "@/components/dashboard/EventsTrendChart";
+import { EventTypeBreakdownChart } from "@/components/dashboard/EventTypeBreakdownChart";
+import { ErrorRateGauge } from "@/components/dashboard/ErrorRateGauge";
+import { GlobalUsersMap } from "@/components/dashboard/GlobalUsersMap";
 import { LiveFeed } from "@/components/dashboard/LiveFeed";
 
 export const dynamic = "force-dynamic";
@@ -13,10 +16,10 @@ export default async function OverviewPage() {
   const session = await getServerSession();
   const orgId = session?.session.activeOrganizationId ?? "";
 
-  // Fetch stats and chart data in parallel — both hit ClickHouse independently.
-  const [stats, buckets] = await Promise.all([
+  const [stats, buckets, geoCounts] = await Promise.all([
     queryOverviewStats(orgId),
     queryHourlyBuckets(orgId),
+    queryGeoDistribution(orgId),
   ]);
 
   return (
@@ -28,10 +31,25 @@ export default async function OverviewPage() {
 
       <StatsCards stats={stats} />
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <EventsChart data={buckets} />
-        <LiveFeed />
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <EventsTrendChart data={buckets} />
+        </div>
+        <div className="lg:col-span-1">
+          <EventTypeBreakdownChart stats={stats} />
+        </div>
       </div>
+
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-1">
+          <ErrorRateGauge stats={stats} />
+        </div>
+        <div className="lg:col-span-2">
+          <LiveFeed />
+        </div>
+      </div>
+
+      <GlobalUsersMap data={geoCounts} />
     </div>
   );
 }

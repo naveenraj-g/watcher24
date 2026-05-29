@@ -80,6 +80,15 @@ export interface HourlyBucket {
   error_count: number;
 }
 
+// GeoCountBucket is one row from the geo distribution query.
+// region holds the ISO 3166-1 alpha-2 country code written by the gateway
+// after GeoIP resolution of the client IP address.
+export interface GeoCountBucket {
+  region: string;
+  event_count: number;
+  unique_users: number;
+}
+
 // queryOverviewStats returns aggregate counts for the last 24 hours for one org.
 export async function queryOverviewStats(
   orgId: string,
@@ -245,6 +254,34 @@ export async function queryEvents(opts: {
   });
 
   return result.json<EventRow>();
+}
+
+// queryGeoDistribution returns per-country event and unique-user counts for the
+// last 24 hours.  The region column stores ISO alpha-2 codes set by the gateway
+// GeoIP resolver — rows with an empty region (private IPs or pre-GeoIP events)
+// are excluded so they don't pollute the choropleth map.
+export async function queryGeoDistribution(
+  orgId: string,
+): Promise<GeoCountBucket[]> {
+  const result = await clickhouse.query({
+    query: `
+      SELECT
+        region,
+        count()           AS event_count,
+        uniqExact(user_id) AS unique_users
+      FROM watcher.events
+      WHERE organization_id = {orgId: String}
+        AND timestamp >= now() - INTERVAL 24 HOUR
+        AND region != ''
+        AND length(region) = 2
+      GROUP BY region
+      ORDER BY event_count DESC
+    `,
+    query_params: { orgId },
+    format: "JSONEachRow",
+  });
+
+  return result.json<GeoCountBucket>();
 }
 
 // getMonthlyEventCount returns the number of events ingested by an org in the
