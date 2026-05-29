@@ -178,3 +178,50 @@ console can relay them to the browser.
 | 401 | No valid session or Bearer token |
 | 403 | User is not a member of the requested organisation |
 | 404 | Token not found or is not a public token |
+
+---
+
+## Dashboards
+
+Dashboards are org-scoped, user-created layouts. Each dashboard stores a
+`layout` JSON array (react-grid-layout descriptor) containing widget
+position/size and configuration.
+
+All endpoints: auth via user session cookie or `Authorization: Bearer` token.
+
+### GET /api/internal/dashboards?orgId=xxx
+
+List all dashboards for an org. Returns metadata only (no `layout`).
+
+**Response (200):**
+```json
+{ "dashboards": [{ "id", "name", "description", "userId", "createdAt", "updatedAt" }] }
+```
+
+### POST /api/internal/dashboards
+
+Create a new empty dashboard.
+
+**Body:** `{ "orgId": "...", "name": "...", "description"?: "..." }`
+
+**Response (201):** `{ "dashboard": { ...full object... } }`
+
+### GET /api/internal/dashboards/[id]
+
+Fetch one dashboard including its full `layout` array.
+
+**Response (200):** `{ "dashboard": { ...full object including layout... } }`
+
+### PUT /api/internal/dashboards/[id]
+
+Update name, description, or layout. Send only the fields to change.
+
+**Body:** `{ "name"?: "...", "description"?: "...", "layout"?: [...] }`
+
+**Response (200):** `{ "dashboard": { ...updated... } }`
+
+### DELETE /api/internal/dashboards/[id]
+
+Delete a dashboard. Only the creator or an org admin/owner may delete.
+
+**Response (200):** `{ "ok": true }`

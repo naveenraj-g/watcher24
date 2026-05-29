@@ -696,3 +696,27 @@ model UserOrgRoleRedirect {
   @@index([organizationId])
   @@map("userOrgRoleRedirect")
 }
+
+// Dashboard stores a custom dashboard created by an org member.
+// `layout` holds the react-grid-layout descriptor array as JSON:
+//   [{ i, x, y, w, h, widgetType, widgetConfig }]
+// where `i` is a stable widget UUID and widgetConfig is widget-specific.
+// Dashboard stores a custom dashboard created by an org member.
+// `layout` holds the react-grid-layout descriptor array as JSON:
+//   [{ i, x, y, w, h, widgetType, widgetConfig }]
+// where `i` is a stable widget UUID and widgetConfig is widget-specific.
+model Dashboard {
+  id          String   @id @default(uuid())
+  orgId       String
+  userId      String
+  name        String
+  description String?
+  layout      Json     @default("[]")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([orgId])
+  @@index([userId])
+  @@index([orgId, userId])
+  @@map("dashboards")
+}

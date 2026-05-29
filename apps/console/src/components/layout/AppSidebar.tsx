@@ -14,11 +14,13 @@ import {
   Settings,
   Zap,
   ShieldAlert,
+  LayoutDashboard,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
   { href: "/overview", label: "Overview", icon: Activity },
+  { href: "/dashboards", label: "Dashboards", icon: LayoutDashboard },
   { href: "/audit", label: "Audit", icon: Shield },
   { href: "/logs", label: "Logs", icon: FileText },
   { href: "/traces", label: "Traces", icon: GitBranch },
