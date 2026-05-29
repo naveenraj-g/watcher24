@@ -219,17 +219,28 @@ export function EventsExplorer({
         {/* Filters */}
         <div className="flex flex-wrap gap-3">
           <DateRangePicker />
-          <div className="relative flex-1 min-w-48">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search messages…"
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setPage(0);
-              }}
-              className="pl-8 h-9"
-            />
+          <div className="flex-1 min-w-48 space-y-1">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder='Search… or use severity:error service:api "exact phrase"'
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setPage(0);
+                }}
+                className="pl-8 h-9 font-mono text-sm"
+              />
+            </div>
+            {search && (
+              <p className="text-[11px] text-muted-foreground px-1">
+                Tip: <code className="bg-muted rounded px-1">severity:error</code>{" "}
+                <code className="bg-muted rounded px-1">service:api*</code>{" "}
+                <code className="bg-muted rounded px-1">env:production</code>{" "}
+                <code className="bg-muted rounded px-1">user:uid123</code>{" "}
+                <code className="bg-muted rounded px-1">"exact phrase"</code>
+              </p>
+            )}
           </div>
           <Select
             value={severity}

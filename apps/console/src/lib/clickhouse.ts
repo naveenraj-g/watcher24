@@ -5,6 +5,8 @@
 // It is server-only — never import this file from client components.
 import { createClient } from "@clickhouse/client";
 
+import { parseSearchQuery } from "./search-parser";
+
 // Module-level singleton — Next.js hot-reloads in dev can create multiple
 // instances, so we stash the client on globalThis to avoid connection pool bloat.
 const globalForClickhouse = globalThis as unknown as {
@@ -223,6 +225,9 @@ export async function queryTraceSpans(
 }
 
 // queryEvents is a generic paginated query used by all explorer pages.
+// The `search` field supports KQL-lite syntax parsed by search-parser.ts:
+//   plain text → message ILIKE '%term%'
+//   severity:error service:api* → field conditions ANDed with message parts
 export async function queryEvents(opts: {
   orgId: string;
   appId?: string;
@@ -259,9 +264,12 @@ export async function queryEvents(opts: {
   if (severity) conditions.push("severity = {severity: String}");
   if (source) conditions.push("source = {source: String}");
   if (serviceName) conditions.push("service_name ILIKE {serviceName: String}");
-  if (search) conditions.push("message ILIKE {search: String}");
   if (from) conditions.push("timestamp >= {from: DateTime64(3)}");
   if (to) conditions.push("timestamp <= {to: DateTime64(3)}");
+
+  // Parse the search string into typed field conditions + plain message ILIKE.
+  const parsed = parseSearchQuery(search ?? "");
+  conditions.push(...parsed.conditions);
 
   const result = await clickhouse.query({
     query: `
@@ -279,11 +287,12 @@ export async function queryEvents(opts: {
       severity: severity ?? "",
       source: source ?? "",
       serviceName: serviceName ? `%${serviceName}%` : "",
-      search: search ? `%${search}%` : "",
       limit,
       offset,
       from: from ?? "",
       to: to ?? "",
+      // Dynamic params from the search parser (sq0, sq1, …)
+      ...parsed.params,
     },
     format: "JSONEachRow",
   });
