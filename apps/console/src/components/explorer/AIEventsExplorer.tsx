@@ -11,6 +11,7 @@ import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { resolveTimeRange, DEFAULT_RANGE, type TimeRangeKey } from "@/lib/time-range";
 import {
   type ColumnDef,
+  type PaginationState,
   getCoreRowModel,
   useReactTable,
 } from "@tanstack/react-table";
@@ -67,7 +68,6 @@ const KIND_OPTIONS = [
 
 const SEVERITY_OPTIONS = ["all", "debug", "info", "warn", "error", "critical"] as const;
 const PRESET_KEYS = ["15m", "1h", "4h", "24h", "7d", "30d"] as TimeRangeKey[];
-const PAGE_SIZE = 50;
 
 interface AIEventsExplorerProps {
   orgId: string;
@@ -78,7 +78,7 @@ export function AIEventsExplorer({ orgId, appId }: AIEventsExplorerProps) {
   const [kind, setKind]               = useState("all");
   const [model, setModel]             = useState("");
   const [severity, setSeverity]       = useState("all");
-  const [page, setPage]               = useState(0);
+  const [pagination, setPagination]   = useState<PaginationState>({ pageIndex: 0, pageSize: 10 });
   const [selectedEvent, setSelectedEvent] = useState<AIEventRow | null>(null);
 
   const [range] = useQueryState(
@@ -88,12 +88,12 @@ export function AIEventsExplorer({ orgId, appId }: AIEventsExplorerProps) {
   const { from, to } = resolveTimeRange(range);
 
   const { data, isFetching, refetch } = useQuery<AIEventRow[]>({
-    queryKey: ["/api/events/ai", orgId, appId, kind, model, severity, page, range],
+    queryKey: ["/api/events/ai", orgId, appId, kind, model, severity, pagination, range],
     queryFn: async () => {
       const params = new URLSearchParams({
         orgId,
-        limit: String(PAGE_SIZE),
-        offset: String(page * PAGE_SIZE),
+        limit: String(pagination.pageSize),
+        offset: String(pagination.pageIndex * pagination.pageSize),
         from,
         to,
       });
@@ -227,10 +227,22 @@ export function AIEventsExplorer({ orgId, appId }: AIEventsExplorerProps) {
     },
   ];
 
+  const hasNextPage = (data?.length ?? 0) >= pagination.pageSize;
+  const pageCount = pagination.pageIndex + (hasNextPage ? 2 : 1);
+
   const table = useReactTable({
     data: data ?? [],
     columns,
     getCoreRowModel: getCoreRowModel(),
+    manualPagination: true,
+    pageCount,
+    state: { pagination },
+    onPaginationChange: (updater) => {
+      setPagination((old) => {
+        const next = typeof updater === "function" ? updater(old) : updater;
+        return next.pageSize !== old.pageSize ? { ...next, pageIndex: 0 } : next;
+      });
+    },
   });
 
   return (
@@ -241,7 +253,7 @@ export function AIEventsExplorer({ orgId, appId }: AIEventsExplorerProps) {
           <DateRangePicker />
           <Select
             value={kind}
-            onValueChange={(v) => { setKind(v); setPage(0); }}
+            onValueChange={(v) => { setKind(v); setPagination((p) => ({ ...p, pageIndex: 0 })); }}
           >
             <SelectTrigger className="w-40 h-9">
               <SelectValue placeholder="Kind" />
@@ -257,12 +269,12 @@ export function AIEventsExplorer({ orgId, appId }: AIEventsExplorerProps) {
           <Input
             placeholder="Model (e.g. gpt-4o)…"
             value={model}
-            onChange={(e) => { setModel(e.target.value); setPage(0); }}
+            onChange={(e) => { setModel(e.target.value); setPagination((p) => ({ ...p, pageIndex: 0 })); }}
             className="w-44 h-9"
           />
           <Select
             value={severity}
-            onValueChange={(v) => { setSeverity(v); setPage(0); }}
+            onValueChange={(v) => { setSeverity(v); setPagination((p) => ({ ...p, pageIndex: 0 })); }}
           >
             <SelectTrigger className="w-36 h-9">
               <SelectValue placeholder="Severity" />
@@ -288,31 +300,8 @@ export function AIEventsExplorer({ orgId, appId }: AIEventsExplorerProps) {
 
         <DataTable
           table={table}
-          withPagination={false}
           onRowClick={(row) => setSelectedEvent(row)}
         />
-
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-muted-foreground">{data?.length ?? 0} results</span>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPage((p) => Math.max(0, p - 1))}
-              disabled={page === 0}
-            >
-              Previous
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPage((p) => p + 1)}
-              disabled={!data || data.length < PAGE_SIZE}
-            >
-              Next
-            </Button>
-          </div>
-        </div>
       </div>
 
       <EventDetailSheet

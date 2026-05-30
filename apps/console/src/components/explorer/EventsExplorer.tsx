@@ -10,6 +10,7 @@ import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { resolveTimeRange, DEFAULT_RANGE, type TimeRangeKey } from "@/lib/time-range";
 import {
   type ColumnDef,
+  type PaginationState,
   getCoreRowModel,
   useReactTable,
 } from "@tanstack/react-table";
@@ -60,9 +61,8 @@ export function EventsExplorer({
   const [severity, setSeverity]           = useState("all");
   const [source, setSource]               = useState("all");
   const [serviceName, setServiceName]     = useState("");
-  const [page, setPage]                   = useState(0);
+  const [pagination, setPagination]       = useState<PaginationState>({ pageIndex: 0, pageSize: 10 });
   const [selectedEvent, setSelectedEvent] = useState<EventRow | null>(null);
-  const PAGE_SIZE = 50;
 
   // Range is shared with the overview page via URL so navigating back preserves it.
   const [range] = useQueryState(
@@ -72,12 +72,12 @@ export function EventsExplorer({
   const { from, to } = resolveTimeRange(range);
 
   const { data, isFetching, refetch } = useQuery<EventRow[]>({
-    queryKey: [apiPath, orgId, eventType, appId, search, severity, source, serviceName, page, range],
+    queryKey: [apiPath, orgId, eventType, appId, search, severity, source, serviceName, pagination, range],
     queryFn: async () => {
       const params = new URLSearchParams({
         orgId,
-        limit: String(PAGE_SIZE),
-        offset: String(page * PAGE_SIZE),
+        limit: String(pagination.pageSize),
+        offset: String(pagination.pageIndex * pagination.pageSize),
         from,
         to,
       });
@@ -207,10 +207,23 @@ export function EventsExplorer({
     },
   ];
 
+  const hasNextPage = (data?.length ?? 0) >= pagination.pageSize;
+  const pageCount = pagination.pageIndex + (hasNextPage ? 2 : 1);
+
   const table = useReactTable({
     data: data ?? [],
     columns,
     getCoreRowModel: getCoreRowModel(),
+    manualPagination: true,
+    pageCount,
+    state: { pagination },
+    onPaginationChange: (updater) => {
+      setPagination((old) => {
+        const next = typeof updater === "function" ? updater(old) : updater;
+        // Reset to page 0 whenever page size changes.
+        return next.pageSize !== old.pageSize ? { ...next, pageIndex: 0 } : next;
+      });
+    },
   });
 
   return (
@@ -227,7 +240,7 @@ export function EventsExplorer({
                 value={search}
                 onChange={(e) => {
                   setSearch(e.target.value);
-                  setPage(0);
+                  setPagination((p) => ({ ...p, pageIndex: 0 }));
                 }}
                 className="pl-8 h-9 font-mono text-sm"
               />
@@ -246,7 +259,7 @@ export function EventsExplorer({
             value={severity}
             onValueChange={(v) => {
               setSeverity(v);
-              setPage(0);
+              setPagination((p) => ({ ...p, pageIndex: 0 }));
             }}
           >
             <SelectTrigger className="w-36 h-9">
@@ -264,7 +277,7 @@ export function EventsExplorer({
             value={source}
             onValueChange={(v) => {
               setSource(v);
-              setPage(0);
+              setPagination((p) => ({ ...p, pageIndex: 0 }));
             }}
           >
             <SelectTrigger className="w-32 h-9">
@@ -283,7 +296,7 @@ export function EventsExplorer({
             value={serviceName}
             onChange={(e) => {
               setServiceName(e.target.value);
-              setPage(0);
+              setPagination((p) => ({ ...p, pageIndex: 0 }));
             }}
             className="w-40 h-9"
           />
@@ -303,34 +316,8 @@ export function EventsExplorer({
         {/* Table — onRowClick wires up full-row click; Eye button is the visible affordance */}
         <DataTable
           table={table}
-          withPagination={false}
           onRowClick={(row) => setSelectedEvent(row)}
         />
-
-        {/* Pagination */}
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-muted-foreground">
-            {data?.length ?? 0} results
-          </span>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPage((p) => Math.max(0, p - 1))}
-              disabled={page === 0}
-            >
-              Previous
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPage((p) => p + 1)}
-              disabled={!data || data.length < PAGE_SIZE}
-            >
-              Next
-            </Button>
-          </div>
-        </div>
       </div>
 
       {/* Detail sheet — rendered outside the table div to avoid stacking context issues */}
