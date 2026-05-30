@@ -87,6 +87,32 @@ client.metric("queue.depth", payload={"value": 42, "queue": "emails"})
 
 ---
 
+### `client.ai(severity, message, *, trace_id="", span_id="", parent_span_id="", payload=None)`
+
+Records an AI agent event. Always include a `payload` with a `kind` field.
+
+**severity:** `"debug"` `"info"` `"warn"` `"error"` `"critical"`
+
+```python
+client.ai("info", "llm.call.completed",
+    trace_id=trace_id,
+    span_id=f"llm-{int(time.time() * 1000)}",
+    payload={
+        "kind": "llm_call", "provider": "openai", "model": "gpt-4o",
+        "total_tokens": 1240, "cost_usd": 0.0037, "latency_ms": 820,
+    }
+)
+
+client.ai("info", "tool.call.completed",
+    trace_id=trace_id,
+    payload={"kind": "tool_call", "tool_name": "web_search", "latency_ms": 340, "success": True}
+)
+```
+
+`EVENT_TYPE_AI` (`"ai"`) is exported from `watcher_sdk` for use with the generic `event()` method.
+
+---
+
 ### `client.event(event_type, severity, message, *, ...)`
 
 Generic method — use when the typed helpers don't fit.

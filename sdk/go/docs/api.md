@@ -85,6 +85,32 @@ client.Metric("api.request_duration",
 )
 ```
 
+### `AI(severity, message string, opts ...EventOption) error`
+
+Records an AI agent event. `severity` must be one of the `SeverityXxx` constants. Always attach a payload with a `"kind"` field.
+
+```go
+client.AI(watcher.SeverityInfo, "llm.call.completed",
+    watcher.WithTraceID(traceID),
+    watcher.WithSpanID(spanID),
+    watcher.WithPayload(map[string]any{
+        "kind": "llm_call", "provider": "openai", "model": "gpt-4o",
+        "total_tokens": 1240, "cost_usd": 0.0037, "latency_ms": 820,
+    }),
+)
+
+client.AI(watcher.SeverityInfo, "tool.call.completed",
+    watcher.WithTraceID(traceID),
+    watcher.WithPayload(map[string]any{
+        "kind": "tool_call", "tool_name": "web_search", "latency_ms": 340, "success": true,
+    }),
+)
+```
+
+`EventTypeAI` (`"ai"`) is also available for use with the generic `Event` method.
+
+---
+
 ### `Event(eventType, severity, message string, opts ...EventOption) error`
 
 Records a generic event when the typed helpers don't fit. Both `eventType` and `severity` are validated against the known constants.

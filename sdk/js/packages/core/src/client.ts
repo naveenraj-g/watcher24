@@ -10,6 +10,9 @@ import type { Transport } from "./ports/transport.js";
 import { CaptureEventUseCase } from "./usecases/capture-event.js";
 import { FlushBufferUseCase } from "./usecases/flush-buffer.js";
 
+/** The event type string for all AI agent telemetry events. */
+export const EVENT_TYPE_AI = "ai" as const;
+
 export interface ClientOptions {
   apiKey: string;
   /**
@@ -71,6 +74,14 @@ export class Client {
   /** Capture a metric data point. Put the numeric value in payload. */
   metric(message: string, options: Pick<CaptureOptions, "payload"> = {}): void {
     this.captureTyped("metric", "info", message, options);
+  }
+
+  /** Capture an AI agent event — LLM calls, tool calls, workflow steps, evals.
+   *  Always include a structured `payload` with a `kind` field so the console
+   *  can display AI-specific columns (model, tokens, cost, latency).
+   */
+  ai(severity: string, message: string, options: CaptureOptions = {}): void {
+    this.captureTyped("ai", severity, message, options);
   }
 
   /** Generic capture — use when the typed helpers don't fit. */

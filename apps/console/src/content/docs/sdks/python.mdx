@@ -110,6 +110,64 @@ client.metric("orders.total", payload={"value": 1_042})
 client.metric("response.latency_ms", payload={"value": 120})
 ```
 
+## AI events
+
+Record AI agent telemetry — LLM calls, tool calls, workflow steps, retrievals, and evals.
+Always include a structured `payload` with a `kind` field so the console can display AI-specific columns (model, tokens, cost, latency) and the workflow waterfall.
+
+```python
+import time, uuid
+
+trace_id = str(uuid.uuid4())
+
+# LLM call
+start = time.perf_counter()
+response = openai_client.chat.completions.create(
+    model="gpt-4o",
+    messages=[{"role": "user", "content": prompt}],
+)
+latency_ms = round((time.perf_counter() - start) * 1000)
+
+client.ai("info", "llm.call.completed",
+    trace_id=trace_id,
+    span_id=f"llm-{int(time.time() * 1000)}",
+    payload={
+        "kind":              "llm_call",
+        "provider":          "openai",
+        "model":             "gpt-4o",
+        "prompt_tokens":     response.usage.prompt_tokens,
+        "completion_tokens": response.usage.completion_tokens,
+        "total_tokens":      response.usage.total_tokens,
+        "latency_ms":        latency_ms,
+        "cost_usd":          round(
+            (response.usage.prompt_tokens * 0.0000025) +
+            (response.usage.completion_tokens * 0.000010), 6
+        ),
+        "finish_reason":     response.choices[0].finish_reason,
+    }
+)
+
+# Tool call
+client.ai("info", "tool.call.completed",
+    trace_id=trace_id,
+    payload={
+        "kind":           "tool_call",
+        "tool_name":      "web_search",
+        "latency_ms":     340,
+        "success":        True,
+        "output_summary": "Found 5 results",
+    }
+)
+```
+
+The `EVENT_TYPE_AI` constant is also exported for callers that prefer the constant over the literal string:
+
+```python
+from watcher_sdk import EVENT_TYPE_AI  # "ai"
+```
+
+See the [AI Agent Observability guide →](/docs/ai/overview) for the full payload schema for all AI event kinds.
+
 ## FastAPI — lifespan pattern (recommended)
 
 ```python
@@ -175,6 +233,17 @@ client.metric(
     message: str,
     *,
     payload: dict | None = None,  # always include {"value": number}
+) -> None
+
+# AI — agent events (LLM calls, tool calls, workflow steps, evals)
+client.ai(
+    severity: str,   # "debug" | "info" | "warn" | "error" | "critical"
+    message: str,
+    *,
+    trace_id: str = "",
+    span_id: str = "",
+    parent_span_id: str = "",
+    payload: dict | None = None,  # always include {"kind": str}
 ) -> None
 
 # Lifecycle

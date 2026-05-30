@@ -114,6 +114,70 @@ watcher.metric("orders.total", { payload: { value: 1_042 } });
 watcher.metric("response.latency_ms", { payload: { value: 120, p99: 340 } });
 ```
 
+### AI events
+
+Record AI agent telemetry — LLM calls, tool calls, workflow steps, retrievals, and evals.
+Always include a structured `payload` with a `kind` field so the console can display AI-specific columns (model, tokens, cost, latency) and the workflow waterfall.
+
+```typescript
+// LLM call — tracked against a workflow trace
+watcher.ai("info", "llm.call.completed", {
+  traceId: workflowTraceId,
+  spanId:  `llm-${Date.now()}`,
+  payload: {
+    kind:              "llm_call",
+    provider:          "openai",
+    model:             "gpt-4o",
+    prompt_tokens:     840,
+    completion_tokens: 400,
+    total_tokens:      1240,
+    latency_ms:        820,
+    cost_usd:          0.0037,
+    finish_reason:     "stop",
+  },
+});
+
+// Tool call
+watcher.ai("info", "tool.call.completed", {
+  traceId: workflowTraceId,
+  payload: {
+    kind:           "tool_call",
+    tool_name:      "web_search",
+    latency_ms:     340,
+    success:        true,
+    output_summary: "Found 5 results",
+  },
+});
+
+// Retrieval (vectorless wiki lookup)
+watcher.ai("info", "retrieval.completed", {
+  traceId: workflowTraceId,
+  payload: {
+    kind:              "retrieval",
+    retrieval_method:  "wiki",
+    source:            "internal-wiki",
+    query_summary:     "refund policy Q3",
+    chunks_retrieved:  3,
+    empty_result:      false,
+    latency_ms:        45,
+  },
+});
+```
+
+The `EVENT_TYPE_AI` constant is also exported from `@watcher/core` for callers that prefer the constant over the literal string:
+
+```typescript
+import { EVENT_TYPE_AI } from "@watcher/core"; // "ai"
+```
+
+<Callout type="note" title="Server-side only">
+AI agent telemetry (LLM calls, tool costs, token counts) happens server-side — never in the browser. Use `@watcher/node` or `@watcher/nextjs` server exports for `ai()`.
+
+For client-side AI interaction tracking (e.g. "user received AI response, response time was 1.2s"), use `audit()` from the browser SDK instead.
+</Callout>
+
+See the [AI Agent Observability guide →](/docs/ai/overview) for the full payload schema for all AI event kinds.
+
 ### Flush and shutdown
 
 ```typescript

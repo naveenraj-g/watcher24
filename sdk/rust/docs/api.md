@@ -78,6 +78,30 @@ client.metric("api.request_duration")
     .send()?;
 ```
 
+### `ai(severity, message) -> EventBuilder`
+
+Records an AI agent event. Always attach a payload with a `"kind"` field.
+
+```rust
+client.ai(Severity::Info, "llm.call.completed")
+    .trace_id(&trace_id)
+    .span_id("llm-001")
+    .payload(json!({
+        "kind": "llm_call", "provider": "openai", "model": "gpt-4o",
+        "total_tokens": 1240, "cost_usd": 0.0037, "latency_ms": 820,
+    }))
+    .send()?;
+
+client.ai(Severity::Info, "tool.call.completed")
+    .trace_id(&trace_id)
+    .payload(json!({ "kind": "tool_call", "tool_name": "web_search", "latency_ms": 340, "success": true }))
+    .send()?;
+```
+
+`EventType::Ai` is also available for use with the generic `event()` method.
+
+---
+
 ### `event(event_type, severity, message) -> EventBuilder`
 
 Records a generic event when typed helpers don't fit.

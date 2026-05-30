@@ -24,7 +24,11 @@ export type WidgetType =
   | "gauge"
   | "stat-card"
   | "world-map"
-  | "log-feed";
+  | "log-feed"
+  | "ai-token-usage"
+  | "ai-cost-by-model"
+  | "ai-latency-percentiles"
+  | "ai-workflow-cost";
 
 export interface Dashboard {
   id: string;

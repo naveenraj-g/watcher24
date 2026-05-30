@@ -1,4 +1,5 @@
 # Public façade — the only class application developers import.
+# EVENT_TYPE_AI is exported for callers that prefer the constant over the literal string.
 # Wires all layers together and exposes a simple, typed API.
 # All methods are thread-safe: application threads only touch the buffer
 # through CaptureEventUseCase which holds a lock internally.
@@ -10,6 +11,9 @@ from watcher_sdk.domain.event import EventInput
 from watcher_sdk.flusher import BackgroundFlusher
 from watcher_sdk.usecases.capture_event import CaptureEventUseCase
 from watcher_sdk.usecases.flush_buffer import FlushBufferUseCase
+
+
+EVENT_TYPE_AI = "ai"
 
 
 class Client:
@@ -139,6 +143,31 @@ class Client:
             event_type="metric",
             severity="info",
             message=message,
+            payload=payload or {},
+        ))
+
+    def ai(
+        self,
+        severity: str,
+        message: str,
+        *,
+        trace_id: str = "",
+        span_id: str = "",
+        parent_span_id: str = "",
+        payload: dict[str, Any] | None = None,
+    ) -> None:
+        """Capture an AI agent event — LLM calls, tool calls, workflow steps, evals.
+
+        Always include a structured payload with a 'kind' field so the console
+        can display AI-specific columns (model, tokens, cost, latency).
+        """
+        self._capture.execute(EventInput(
+            event_type="ai",
+            severity=severity,
+            message=message,
+            trace_id=trace_id,
+            span_id=span_id,
+            parent_span_id=parent_span_id,
             payload=payload or {},
         ))
 

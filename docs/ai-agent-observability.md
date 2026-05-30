@@ -107,12 +107,14 @@ All AI events use `event_type: "ai"` and carry a structured `payload`. The paylo
 | `agent_step` | One step in an agent reasoning loop | `step_number`, `thought`, `action`, `action_input`, `observation` |
 | `workflow_start` | Agent workflow begins | `workflow_name`, `workflow_version`, `trigger`, `input_summary` |
 | `workflow_end` | Agent workflow completes | `workflow_name`, `duration_ms`, `total_tokens`, `total_cost_usd`, `steps_taken`, `outcome` |
-| `retrieval` | RAG vector search / document fetch | `query_summary`, `source`, `chunks_retrieved`, `top_score`, `latency_ms` |
+| `retrieval` | RAG retrieval — vector, BM25, wiki, or hybrid | `query_summary`, `source`, `retrieval_method`, `chunks_retrieved`, `top_score`, `latency_ms`, `empty_result` |
 | `memory_read` | Agent reads from memory store | `memory_type`, `query_summary`, `items_retrieved`, `latency_ms` |
 | `memory_write` | Agent writes to memory store | `memory_type`, `content_summary`, `latency_ms` |
 | `safety_check` | Content moderation / guardrail | `guardrail`, `input_flagged`, `output_flagged`, `action_taken` |
 | `human_handoff` | Agent escalates to human | `reason`, `escalation_type`, `urgency` |
 | `eval_result` | Production evaluation score | `evaluator`, `metric`, `score`, `passed`, `sample_input`, `sample_output` |
+| `eval_run` | Offline batch evaluation run | `run_id`, `dataset_id`, `prompt_version`, `model`, `pass_rate`, `avg_score`, `samples_evaluated`, `duration_ms` |
+| `human_feedback` | Human label on an AI output | `trace_id`, `span_id`, `label`, `score`, `comment`, `labeller_id`, `feedback_source` |
 
 ### Trace correlation for agent workflows
 
@@ -401,13 +403,116 @@ watcher.event("ai", "info", "eval.result",
 
 Dashboard shows quality trends over time, correlated with model version and prompt version.
 
-#### 2.5 RAG pipeline observability
+#### 2.5 Offline eval, datasets & regression testing
 
-Specific tracking for retrieval-augmented generation systems:
-- **Retrieval quality**: top similarity score distribution over time
-- **Empty retrieval rate**: queries that returned no relevant chunks
-- **Source attribution**: which documents are most frequently retrieved
+Online eval scoring (section 2.4) only covers production calls. A complete eval story also needs:
+
+**Eval datasets** — curated test cases stored in PostgreSQL, used to run a prompt/model version against a known set of inputs before shipping.
+
+```sql
+CREATE TABLE eval_datasets (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id       TEXT NOT NULL,
+  name         TEXT NOT NULL,
+  description  TEXT,
+  created_by   TEXT,
+  created_at   TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE eval_dataset_items (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  dataset_id   UUID REFERENCES eval_datasets(id) ON DELETE CASCADE,
+  input        JSONB NOT NULL,           -- the prompt / user message
+  expected     JSONB,                    -- expected output or criteria
+  metadata     JSONB DEFAULT '{}',       -- tags, source trace_id, etc.
+  source       TEXT DEFAULT 'manual',    -- 'manual' | 'sampled' | 'imported'
+  created_at   TIMESTAMPTZ DEFAULT now()
+);
+```
+
+**Automated sampling** — capture a fraction of production LLM calls into a dataset automatically. Add a `sample_rate` field to `prompt_templates` (0.0–1.0). When a production `llm_call` event fires and the call is sampled, write the input/output pair as an `eval_dataset_item` with `source: 'sampled'`. This gives teams a continuously growing eval set without manual curation.
+
+```python
+watcher.event("ai", "info", "eval.run.completed",
+    payload={
+        "kind":               "eval_run",
+        "run_id":             "run-abc123",
+        "dataset_id":         "ds-xyz",
+        "prompt_version":     "v2.4",
+        "model":              "gpt-4o",
+        "samples_evaluated":  120,
+        "pass_rate":          0.91,
+        "avg_score":          0.87,
+        "duration_ms":        14200,
+    }
+)
+```
+
+**Human feedback** — allow labellers to rate production outputs. A `human_feedback` event links back to a specific `trace_id` + `span_id` so scores can be correlated with the exact LLM call that produced the output.
+
+```python
+watcher.event("ai", "info", "human.feedback",
+    trace_id=trace_id,
+    span_id=llm_span_id,
+    payload={
+        "kind":            "human_feedback",
+        "label":           "bad",          # 'good' | 'bad' | 'neutral'
+        "score":           0.2,            # 0.0–1.0
+        "comment":         "Hallucinated the product name",
+        "labeller_id":     "user-001",
+        "feedback_source": "thumbs_down",  # 'thumbs_down' | 'labelling_ui' | 'survey'
+    }
+)
+```
+
+**Regression detection** — the console compares `pass_rate` and `avg_score` across `eval_run` events for the same dataset. If a new prompt version scores more than 5 pp below the previous run, surface a regression alert before the version goes live.
+
+**Dashboard widgets:**
+- Pass rate trend by prompt version (line chart)
+- Score distribution per model / evaluator (histogram)
+- Human feedback rate over time (thumbs up/down ratio)
+- Sampled dataset growth (items collected per day)
+- Regression diff table: current vs. previous run side-by-side
+
+#### 2.6 RAG pipeline observability
+
+Watcher24 tracks all retrieval strategies under the same `retrieval` event kind. The `retrieval_method` field distinguishes how documents were fetched:
+
+| `retrieval_method` | Description |
+|--------------------|-------------|
+| `vector` | Dense embedding similarity search (Pinecone, Weaviate, pgvector, etc.) |
+| `bm25` | Keyword / full-text search (Elasticsearch, Typesense, Postgres FTS) |
+| `hybrid` | Combined vector + BM25 with re-ranking |
+| `wiki` | Structured wiki or knowledge base lookup by title / page ID |
+| `sql` | Structured database query used as a retrieval step |
+| `api` | External API call that fetches grounding context (e.g. search engine, docs API) |
+
+**Example — vectorless wiki retrieval:**
+
+```python
+watcher.event("ai", "info", "retrieval.completed",
+    trace_id=trace_id,
+    payload={
+        "kind":              "retrieval",
+        "retrieval_method":  "wiki",           # no vectors involved
+        "source":            "internal-wiki",
+        "query_summary":     "refund policy Q3",
+        "chunks_retrieved":  3,
+        "top_score":         None,             # not applicable for non-vector methods
+        "empty_result":      False,
+        "latency_ms":        45,
+    }
+)
+```
+
+`top_score` is only meaningful for vector and hybrid methods — it should be `null` / omitted for BM25, wiki, SQL, and API retrievals. The console suppresses the similarity score column for non-vector rows automatically.
+
+**Dashboard widgets (all retrieval methods):**
+- **Retrieval quality**: `top_score` distribution over time (vector/hybrid only)
+- **Empty retrieval rate**: queries that returned no results, broken down by `retrieval_method`
+- **Source attribution**: which sources (`wiki`, `sql`, `api`, document store name) are retrieved most frequently
 - **Context window usage**: `retrieved_tokens / context_limit` per call
+- **Method mix**: pie / stacked bar of `retrieval_method` values — useful for teams running hybrid pipelines to see which strategy fires most often and at what latency
 
 ---
 
@@ -557,6 +662,9 @@ ORDER BY hour;
 | **Medium** | Safety/guardrail event dashboard | 3–5 days | Compliance selling point |
 | **Medium** | AgentAuth → observability linkage (per-agent event filtering) | 5–7 days | Enterprise differentiator |
 | **Medium** | RAG pipeline observability widgets | 3–5 days | AI infrastructure market |
+| **Medium** | Eval dataset table + sampling from production calls | 3–5 days | Continuous eval set without manual curation |
+| **Medium** | Human feedback events + labelling UI | 3–5 days | Ground-truth signal for quality scoring |
+| **Long** | Offline eval run API + regression detection | 1–2 weeks | Catch prompt regressions before shipping |
 | **Long** | Hallucination/quality scoring integration | 2–3 weeks | Advanced AI quality management |
 | **Long** | Anomaly detection on AI events | 2–3 weeks | Autonomous cost protection |
 | **Long** | Multi-agent workflow visualization | 3–4 weeks | Top-tier AI platform feature |
@@ -583,3 +691,7 @@ ORDER BY hour;
 - AI cost alert rule type
 - Safety check aggregation dashboard
 - AgentAuth → event filtering linkage
+- Eval dataset + dataset items tables
+- Automated production sampling (sample_rate on prompt templates)
+- Human feedback event kind + labelling UI
+- Offline eval run API and regression detection dashboard

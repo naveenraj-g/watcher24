@@ -6,18 +6,14 @@ import { TestPanel } from "@/components/TestPanel";
 export default function TestPage() {
   return (
     <main style={{ maxWidth: 960, margin: "40px auto", padding: "0 16px" }}>
-      <a
-        href="/tasks"
-        style={{
-          fontSize: 12,
-          color: "#6b7280",
-          textDecoration: "none",
-          display: "inline-block",
-          marginBottom: 12,
-        }}
-      >
-        ← Back to Bookmarks
-      </a>
+      <div style={{ display: "flex", gap: 16, marginBottom: 12 }}>
+        <a href="/tasks" style={{ fontSize: 12, color: "#6b7280", textDecoration: "none" }}>
+          ← Back to Bookmarks
+        </a>
+        <a href="/ai-event" style={{ fontSize: 12, color: "#7c3aed", textDecoration: "none", fontWeight: 600 }}>
+          🤖 AI Events →
+        </a>
+      </div>
 
       <h1 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 700 }}>
         SDK Test Lab

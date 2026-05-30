@@ -108,6 +108,52 @@ client.metric("api.request_duration")
     .send()?;
 ```
 
+## AI events
+
+Record AI agent telemetry — LLM calls, tool calls, workflow steps, retrievals, and evals.
+Always attach a payload with a `"kind"` field so the console can display AI-specific columns (model, tokens, cost, latency) and the workflow waterfall.
+
+```rust
+use serde_json::json;
+use watcher_sdk::Severity;
+
+let trace_id = format!("wf-{}", std::time::SystemTime::now()
+    .duration_since(std::time::UNIX_EPOCH).unwrap().as_millis());
+
+// LLM call
+client.ai(Severity::Info, "llm.call.completed")
+    .trace_id(&trace_id)
+    .span_id("llm-001")
+    .payload(json!({
+        "kind":              "llm_call",
+        "provider":          "openai",
+        "model":             "gpt-4o",
+        "prompt_tokens":     840,
+        "completion_tokens": 400,
+        "total_tokens":      1240,
+        "latency_ms":        820,
+        "cost_usd":          0.0037,
+        "finish_reason":     "stop",
+    }))
+    .send()?;
+
+// Tool call
+client.ai(Severity::Info, "tool.call.completed")
+    .trace_id(&trace_id)
+    .payload(json!({
+        "kind":           "tool_call",
+        "tool_name":      "web_search",
+        "latency_ms":     340,
+        "success":        true,
+        "output_summary": "Found 5 results",
+    }))
+    .send()?;
+```
+
+`EventType::Ai` is also available for use with the generic `event()` method.
+
+See the [AI Agent Observability guide →](/docs/ai/overview) for the full payload schema for all AI event kinds.
+
 ## Generic event
 
 ```rust

@@ -149,6 +149,49 @@ w.Metric("api.request_duration",
 )
 ```
 
+## AI events
+
+Record AI agent telemetry — LLM calls, tool calls, workflow steps, retrievals, and evals.
+Always include a structured payload with a `"kind"` field so the console can display AI-specific columns (model, tokens, cost, latency) and the workflow waterfall.
+
+```go
+traceID := fmt.Sprintf("wf-%d", time.Now().UnixMilli())
+spanID  := fmt.Sprintf("llm-%d", time.Now().UnixMilli())
+
+// LLM call
+w.AI(watcher.SeverityInfo, "llm.call.completed",
+    watcher.WithTraceID(traceID),
+    watcher.WithSpanID(spanID),
+    watcher.WithPayload(map[string]any{
+        "kind":              "llm_call",
+        "provider":          "openai",
+        "model":             "gpt-4o",
+        "prompt_tokens":     840,
+        "completion_tokens": 400,
+        "total_tokens":      1240,
+        "latency_ms":        820,
+        "cost_usd":          0.0037,
+        "finish_reason":     "stop",
+    }),
+)
+
+// Tool call
+w.AI(watcher.SeverityInfo, "tool.call.completed",
+    watcher.WithTraceID(traceID),
+    watcher.WithPayload(map[string]any{
+        "kind":           "tool_call",
+        "tool_name":      "web_search",
+        "latency_ms":     340,
+        "success":        true,
+        "output_summary": "Found 5 results",
+    }),
+)
+```
+
+The `EventTypeAI` constant (`"ai"`) is also available for use with the generic `Event` method.
+
+See the [AI Agent Observability guide →](/docs/ai/overview) for the full payload schema for all AI event kinds.
+
 ## Generic event
 
 Use `Event` when a typed helper doesn't fit.

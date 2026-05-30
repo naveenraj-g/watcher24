@@ -108,6 +108,9 @@ _HTML = """<!DOCTYPE html>
   .btn-log-error { color:#991b1b; background:#fef2f2; border-color:#fecaca; }
   .btn-trace  { color:#6d28d9; background:#f5f3ff; border-color:#ddd6fe; }
   .btn-metric { color:#15803d; background:#f0fdf4; border-color:#bbf7d0; }
+  .btn-ai     { color:#7c3aed; background:#f5f3ff; border-color:#ddd6fe; }
+  .btn-ai-wf  { color:#5b21b6; background:#ede9fe; border-color:#c4b5fd; font-weight:600; }
+  .chip-ai    { background:#f5f3ff; color:#7c3aed; border-color:#ddd6fe; }
   .log-panel { margin-top: 24px; background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; overflow: hidden; max-width: 520px; margin-left: auto; margin-right: auto; }
   .log-header { padding: 10px 16px; background: #f9fafb; border-bottom: 1px solid #e5e7eb; display: flex; align-items: center; justify-content: space-between; }
   .log-header span { font-size: 13px; font-weight: 600; }
@@ -159,6 +162,22 @@ _HTML = """<!DOCTYPE html>
       <button class="btn btn-metric" onclick="fire('/test/metric',{event_type:'test.server.request.count',value:1},'metric')">metric&nbsp;&nbsp;test.server.request.count</button>
       <button class="btn btn-metric" onclick="fire('/test/metric',{event_type:'test.server.response.time.ms',value:Math.round(Math.random()*500)},'metric')">metric&nbsp;&nbsp;test.server.response.time.ms</button>
     </div>
+
+    <div class="card" style="border-color:#ddd6fe">
+      <div class="card-header">
+        <span style="font-size:20px">🤖</span>
+        <div><h2>AI Agent Events</h2><p>client.ai() — event_type: "ai" — server-side only</p></div>
+      </div>
+
+      <p class="section-label">Single Events</p>
+      <button class="btn btn-ai" onclick="fireAI('/ai/llm-call','llm_call','LLM call (gpt-4o)')">ai&nbsp;&nbsp;llm_call — single LLM API call</button>
+      <button class="btn btn-ai" onclick="fireAI('/ai/tool-call','tool_call','Tool call (random)')">ai&nbsp;&nbsp;tool_call — agent calls external tool</button>
+      <button class="btn btn-ai" onclick="fireAI('/ai/retrieval','retrieval','RAG retrieval (random method)')">ai&nbsp;&nbsp;retrieval — RAG document fetch</button>
+      <button class="btn btn-ai" onclick="fireAI('/ai/eval','eval_result','Eval score')">ai&nbsp;&nbsp;eval_result — LLM-as-judge quality score</button>
+
+      <p class="section-label">Full Workflow (7 spans, 1 trace)</p>
+      <button class="btn btn-ai-wf" onclick="fireWorkflow()">ai&nbsp;&nbsp;workflow — start → retrieval → llm → safety → tool → llm → end</button>
+    </div>
   </div>
 
   <div class="log-panel">
@@ -192,6 +211,40 @@ async function fire(path, body, kind, severity) {
   }
 }
 
+async function fireAI(path, aiKind, label) {
+  const btn = event.currentTarget;
+  const orig = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '⏳ sending…';
+  try {
+    const res = await fetch(path, { method: 'POST' });
+    const data = await res.json();
+    push({ kind: 'ai', eventType: `ai.${aiKind}`, aiKind, sentAt: data.sent_at || new Date().toISOString() });
+  } catch(e) {
+    push({ kind: 'ai', eventType: `ai.${aiKind}`, aiKind, sentAt: new Date().toISOString() });
+  } finally {
+    btn.disabled = false;
+    btn.textContent = orig;
+  }
+}
+
+async function fireWorkflow() {
+  const btn = event.currentTarget;
+  const orig = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '⏳ sending 7 spans…';
+  try {
+    const res = await fetch('/ai/workflow', { method: 'POST' });
+    const data = await res.json();
+    push({ kind: 'ai', eventType: `workflow (${data.spans} spans, trace: ${data.trace_id?.slice(0,8)}…)`, aiKind: 'workflow', sentAt: data.sent_at || new Date().toISOString() });
+  } catch(e) {
+    push({ kind: 'ai', eventType: 'workflow (7 spans)', aiKind: 'workflow', sentAt: new Date().toISOString() });
+  } finally {
+    btn.disabled = false;
+    btn.textContent = orig;
+  }
+}
+
 function push(entry) {
   entry.id = Math.random().toString(36).slice(2);
   entries.unshift(entry);
@@ -216,6 +269,7 @@ function render() {
   body.innerHTML = entries.map(e => `
     <div class="log-row">
       ${chip(e.kind, 'chip-' + e.kind)}
+      ${e.aiKind ? chip(e.aiKind.replace(/_/g,' '), 'chip-ai') : ''}
       ${e.severity ? chip(e.severity, 'chip-' + e.severity) : ''}
       <span class="log-event-type">${e.eventType}</span>
       <span class="log-time">${new Date(e.sentAt).toLocaleTimeString()}</span>

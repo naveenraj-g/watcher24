@@ -144,6 +144,127 @@ fn main() -> watcher_sdk::Result<()> {
         }))
         .send()?;
 
+    // ── AI agent events ──────────────────────────────────────────────────────
+    // Use ai() for all LLM calls, tool executions, workflow steps, and evals.
+    // All spans in a workflow share the same trace_id so the console renders
+    // them as a single waterfall in the AI Events and Traces views.
+
+    let wf_trace_id = format!("wf-{}", std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH).unwrap().as_millis());
+    let wf_span_id  = format!("wf-start-{}", std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH).unwrap().as_millis());
+
+    // 1 — workflow_start
+    client.ai(Severity::Info, "workflow.start")
+        .trace_id(&wf_trace_id)
+        .span_id(&wf_span_id)
+        .payload(json!({
+            "kind":             "workflow_start",
+            "workflow_name":    "answer-user-query",
+            "workflow_version": "v1.0",
+            "trigger":          "user_message",
+            "input_summary":    "User asked about pricing plans",
+        }))
+        .send()?;
+
+    // 2 — retrieval (wiki, vectorless)
+    let ret_span_id = format!("ret-{}", std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH).unwrap().as_millis());
+    client.ai(Severity::Info, "retrieval.completed")
+        .trace_id(&wf_trace_id)
+        .span_id(&ret_span_id)
+        .parent_span_id(&wf_span_id)
+        .payload(json!({
+            "kind":             "retrieval",
+            "retrieval_method": "wiki",
+            "source":           "internal-wiki",
+            "query_summary":    "pricing plans",
+            "chunks_retrieved": 3,
+            "top_score":        null,
+            "empty_result":     false,
+            "latency_ms":       72,
+        }))
+        .send()?;
+
+    // 3 — llm_call (gpt-4o)
+    let llm_span_id = format!("llm-{}", std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH).unwrap().as_millis());
+    client.ai(Severity::Info, "llm.call.completed")
+        .trace_id(&wf_trace_id)
+        .span_id(&llm_span_id)
+        .parent_span_id(&wf_span_id)
+        .payload(json!({
+            "kind":              "llm_call",
+            "provider":          "openai",
+            "model":             "gpt-4o",
+            "prompt_tokens":     840,
+            "completion_tokens": 400,
+            "total_tokens":      1240,
+            "latency_ms":        820,
+            "cost_usd":          0.0062,
+            "finish_reason":     "stop",
+            "cached":            false,
+        }))
+        .send()?;
+
+    // 4 — safety_check (child of llm_call)
+    client.ai(Severity::Info, "safety.check")
+        .trace_id(&wf_trace_id)
+        .span_id("safe-001")
+        .parent_span_id(&llm_span_id)
+        .payload(json!({
+            "kind":           "safety_check",
+            "guardrail":      "llama-guard-3",
+            "input_flagged":  false,
+            "output_flagged": false,
+            "action_taken":   "passed",
+            "latency_ms":     28,
+        }))
+        .send()?;
+
+    // 5 — tool_call
+    client.ai(Severity::Info, "tool.call.completed")
+        .trace_id(&wf_trace_id)
+        .span_id("tool-001")
+        .parent_span_id(&wf_span_id)
+        .payload(json!({
+            "kind":           "tool_call",
+            "tool_name":      "get_pricing_table",
+            "latency_ms":     140,
+            "success":        true,
+            "output_summary": "Returned 3 pricing tiers",
+        }))
+        .send()?;
+
+    // 6 — workflow_end
+    client.ai(Severity::Info, "workflow.end")
+        .trace_id(&wf_trace_id)
+        .span_id("wf-end-001")
+        .parent_span_id(&wf_span_id)
+        .payload(json!({
+            "kind":           "workflow_end",
+            "workflow_name":  "answer-user-query",
+            "duration_ms":    1120,
+            "total_tokens":   1240,
+            "total_cost_usd": 0.0062,
+            "steps_taken":    4,
+            "outcome":        "success",
+        }))
+        .send()?;
+
+    // 7 — standalone eval_result
+    client.ai(Severity::Info, "eval.result")
+        .payload(json!({
+            "kind":      "eval_result",
+            "evaluator": "llm-as-judge",
+            "metric":    "factual_accuracy",
+            "score":     0.87_f64,
+            "passed":    true,
+        }))
+        .send()?;
+
+    println!("AI workflow sent: trace_id={}  6 spans", wf_trace_id);
+
     // ── Explicit flush ────────────────────────────────────────────────────────
     // In long-running services the background thread handles this.
     // In short-lived programs call flush() before shutdown().

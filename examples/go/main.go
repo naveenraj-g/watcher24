@@ -179,6 +179,123 @@ func main() {
 		}),
 	)
 
+	// ── AI agent events ──────────────────────────────────────────────────────
+	// Use AI() for all LLM calls, tool executions, workflow steps, and evals.
+	// All spans in a workflow share the same wfTraceID so the console renders
+	// them as a single waterfall in the AI Events and Traces views.
+
+	wfTraceID  := fmt.Sprintf("wf-%d", time.Now().UnixMilli())
+	wfSpanID   := fmt.Sprintf("wf-start-%d", time.Now().UnixMilli())
+
+	// 1 — workflow_start
+	_ = client.AI(watcher.SeverityInfo, "workflow.start",
+		watcher.WithTraceID(wfTraceID),
+		watcher.WithSpanID(wfSpanID),
+		watcher.WithPayload(map[string]any{
+			"kind":              "workflow_start",
+			"workflow_name":     "answer-user-query",
+			"workflow_version":  "v1.0",
+			"trigger":           "user_message",
+			"input_summary":     "User asked about pricing plans",
+		}),
+	)
+
+	// 2 — retrieval (wiki, vectorless)
+	retSpanID := fmt.Sprintf("ret-%d", time.Now().UnixMilli())
+	_ = client.AI(watcher.SeverityInfo, "retrieval.completed",
+		watcher.WithTraceID(wfTraceID),
+		watcher.WithSpanID(retSpanID),
+		watcher.WithParentSpanID(wfSpanID),
+		watcher.WithPayload(map[string]any{
+			"kind":              "retrieval",
+			"retrieval_method":  "wiki",
+			"source":            "internal-wiki",
+			"query_summary":     "pricing plans",
+			"chunks_retrieved":  3,
+			"top_score":         nil,
+			"empty_result":      false,
+			"latency_ms":        72,
+		}),
+	)
+
+	// 3 — llm_call (gpt-4o)
+	llmSpanID := fmt.Sprintf("llm-%d", time.Now().UnixMilli())
+	_ = client.AI(watcher.SeverityInfo, "llm.call.completed",
+		watcher.WithTraceID(wfTraceID),
+		watcher.WithSpanID(llmSpanID),
+		watcher.WithParentSpanID(wfSpanID),
+		watcher.WithPayload(map[string]any{
+			"kind":              "llm_call",
+			"provider":          "openai",
+			"model":             "gpt-4o",
+			"prompt_tokens":     840,
+			"completion_tokens": 400,
+			"total_tokens":      1240,
+			"latency_ms":        820,
+			"cost_usd":          0.0062,
+			"finish_reason":     "stop",
+			"cached":            false,
+		}),
+	)
+
+	// 4 — safety_check (child of llm_call)
+	_ = client.AI(watcher.SeverityInfo, "safety.check",
+		watcher.WithTraceID(wfTraceID),
+		watcher.WithSpanID(fmt.Sprintf("safe-%d", time.Now().UnixMilli())),
+		watcher.WithParentSpanID(llmSpanID),
+		watcher.WithPayload(map[string]any{
+			"kind":            "safety_check",
+			"guardrail":       "llama-guard-3",
+			"input_flagged":   false,
+			"output_flagged":  false,
+			"action_taken":    "passed",
+			"latency_ms":      28,
+		}),
+	)
+
+	// 5 — tool_call
+	_ = client.AI(watcher.SeverityInfo, "tool.call.completed",
+		watcher.WithTraceID(wfTraceID),
+		watcher.WithSpanID(fmt.Sprintf("tool-%d", time.Now().UnixMilli())),
+		watcher.WithParentSpanID(wfSpanID),
+		watcher.WithPayload(map[string]any{
+			"kind":           "tool_call",
+			"tool_name":      "get_pricing_table",
+			"latency_ms":     140,
+			"success":        true,
+			"output_summary": "Returned 3 pricing tiers",
+		}),
+	)
+
+	// 6 — workflow_end
+	_ = client.AI(watcher.SeverityInfo, "workflow.end",
+		watcher.WithTraceID(wfTraceID),
+		watcher.WithSpanID(fmt.Sprintf("wf-end-%d", time.Now().UnixMilli())),
+		watcher.WithParentSpanID(wfSpanID),
+		watcher.WithPayload(map[string]any{
+			"kind":            "workflow_end",
+			"workflow_name":   "answer-user-query",
+			"duration_ms":     1120,
+			"total_tokens":    1240,
+			"total_cost_usd":  0.0062,
+			"steps_taken":     4,
+			"outcome":         "success",
+		}),
+	)
+
+	// 7 — standalone eval_result (not part of the workflow trace)
+	_ = client.AI(watcher.SeverityInfo, "eval.result",
+		watcher.WithPayload(map[string]any{
+			"kind":         "eval_result",
+			"evaluator":    "llm-as-judge",
+			"metric":       "factual_accuracy",
+			"score":        0.87,
+			"passed":       true,
+		}),
+	)
+
+	fmt.Printf("AI workflow sent: trace_id=%s  6 spans\n", wfTraceID)
+
 	// ── Explicit flush ────────────────────────────────────────────────────────
 	// In long-running services the background goroutine handles flushing.
 	// In short-lived programs or serverless handlers, call Flush explicitly.

@@ -109,6 +109,31 @@ impl Client {
         EventBuilder::new(self, EventType::Metric.as_str(), Severity::Info.as_str(), message)
     }
 
+    /// Records an AI agent event — LLM calls, tool calls, workflow steps, evals.
+    /// Always attach a payload with a `"kind"` field so the console can display
+    /// AI-specific columns (model, tokens, cost, latency).
+    ///
+    /// ```rust,no_run
+    /// # let client = watcher_sdk::Client::builder("wtch_test").build()?;
+    /// use serde_json::json;
+    /// use watcher_sdk::Severity;
+    /// client.ai(Severity::Info, "llm.call.completed")
+    ///     .trace_id("wf-abc123")
+    ///     .payload(json!({
+    ///         "kind": "llm_call",
+    ///         "provider": "openai",
+    ///         "model": "gpt-4o",
+    ///         "total_tokens": 1240,
+    ///         "cost_usd": 0.0037,
+    ///         "latency_ms": 820,
+    ///     }))
+    ///     .send()?;
+    /// # Ok::<(), watcher_sdk::Error>(())
+    /// ```
+    pub fn ai(&self, severity: Severity, message: impl Into<String>) -> EventBuilder<'_> {
+        EventBuilder::new(self, EventType::Ai.as_str(), severity.as_str(), message)
+    }
+
     /// Records a generic event when the typed helpers don't fit.
     pub fn event(
         &self,

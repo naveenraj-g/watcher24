@@ -7,6 +7,7 @@
 import type { WidgetType, WidgetConfig } from "@/lib/dashboards-api";
 import {
   Activity, BarChart2, Gauge, Map, List, TrendingUp,
+  Cpu, DollarSign, Timer, Workflow,
 } from "lucide-react";
 
 export interface WidgetMeta {
@@ -73,6 +74,42 @@ export const WIDGET_REGISTRY: WidgetMeta[] = [
     defaultW: 6,
     defaultH: 5,
     defaultConfig: { title: "Recent logs", eventType: "log" },
+  },
+  {
+    type: "ai-token-usage",
+    label: "AI Token Usage",
+    description: "Token spend over time grouped by model",
+    icon: Cpu,
+    defaultW: 6,
+    defaultH: 4,
+    defaultConfig: { title: "AI Token Usage" },
+  },
+  {
+    type: "ai-cost-by-model",
+    label: "AI Cost by Model",
+    description: "Total LLM cost (USD) per model",
+    icon: DollarSign,
+    defaultW: 4,
+    defaultH: 4,
+    defaultConfig: { title: "Cost by Model" },
+  },
+  {
+    type: "ai-latency-percentiles",
+    label: "AI Latency",
+    description: "p50 / p95 / p99 LLM call latency per model",
+    icon: Timer,
+    defaultW: 6,
+    defaultH: 4,
+    defaultConfig: { title: "AI Latency Percentiles" },
+  },
+  {
+    type: "ai-workflow-cost",
+    label: "Top Workflows by Cost",
+    description: "Most expensive agent workflows ranked by total spend",
+    icon: Workflow,
+    defaultW: 6,
+    defaultH: 4,
+    defaultConfig: { title: "Top Workflows by Cost" },
   },
 ];
 

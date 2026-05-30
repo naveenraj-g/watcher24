@@ -96,6 +96,34 @@ client.metric("queue.depth", { payload: { value: 42, queue: "emails" } });
 
 ---
 
+### `client.ai(severity, message, options?)` — server-side only
+
+Records an AI agent event. Always include a `payload` with a `kind` field.
+Available in `@watcher/node` and `@watcher/nextjs` server exports only.
+For client-side AI interaction tracking use `audit()` from the browser SDK.
+
+**severity:** `"debug"` `"info"` `"warn"` `"error"` `"critical"`
+
+```ts
+client.ai("info", "llm.call.completed", {
+  traceId: workflowTraceId,
+  spanId: `llm-${Date.now()}`,
+  payload: {
+    kind: "llm_call", provider: "openai", model: "gpt-4o",
+    total_tokens: 1240, cost_usd: 0.0037, latency_ms: 820,
+  },
+});
+
+client.ai("info", "tool.call.completed", {
+  traceId: workflowTraceId,
+  payload: { kind: "tool_call", tool_name: "web_search", latency_ms: 340, success: true },
+});
+```
+
+The `EVENT_TYPE_AI` constant (`"ai"`) is exported from `@watcher/core` for use with the generic `event()` method.
+
+---
+
 ### `client.event(eventType, severity, message, options?)`
 
 Generic — use when typed helpers don't fit.

@@ -337,6 +337,210 @@ export async function queryGeoDistribution(
   return result.json<GeoCountBucket>();
 }
 
+// AIEventRow extends EventRow with parsed payload fields extracted server-side
+// so the AI explorer columns don't need to JSON.parse in every cell renderer.
+export interface AIEventRow extends EventRow {
+  ai_kind: string;
+  ai_model: string;
+  ai_total_tokens: number;
+  ai_cost_usd: number;
+  ai_latency_ms: number;
+}
+
+// queryAIEvents is a paginated query for AI events with kind and model filters.
+// The kind and model fields live inside the JSON payload column, so they are
+// extracted server-side rather than filtering client-side.
+export async function queryAIEvents(opts: {
+  orgId: string;
+  appId?: string;
+  kind?: string;
+  model?: string;
+  severity?: string;
+  search?: string;
+  limit?: number;
+  offset?: number;
+  from?: string;
+  to?: string;
+}): Promise<AIEventRow[]> {
+  const {
+    orgId, appId, kind, model, severity, search,
+    limit = 50, offset = 0, from, to,
+  } = opts;
+
+  const conditions: string[] = ["organization_id = {orgId: String}", "event_type = 'ai'"];
+
+  if (appId)    conditions.push("application_id = {appId: String}");
+  if (severity) conditions.push("severity = {severity: String}");
+  if (kind)     conditions.push("JSONExtractString(payload, 'kind') = {kind: String}");
+  if (model)    conditions.push("JSONExtractString(payload, 'model') = {model: String}");
+  if (from)     conditions.push("timestamp >= {from: DateTime64(3)}");
+  if (to)       conditions.push("timestamp <= {to: DateTime64(3)}");
+
+  const parsed = parseSearchQuery(search ?? "");
+  conditions.push(...parsed.conditions);
+
+  const result = await clickhouse.query({
+    query: `
+      SELECT
+        *,
+        JSONExtractString(payload, 'kind')         AS ai_kind,
+        JSONExtractString(payload, 'model')        AS ai_model,
+        JSONExtractInt(payload, 'total_tokens')    AS ai_total_tokens,
+        JSONExtractFloat(payload, 'cost_usd')      AS ai_cost_usd,
+        JSONExtractFloat(payload, 'latency_ms')    AS ai_latency_ms
+      FROM watcher.events
+      WHERE ${conditions.join(" AND ")}
+      ORDER BY timestamp DESC
+      LIMIT {limit: UInt32}
+      OFFSET {offset: UInt32}
+    `,
+    query_params: {
+      orgId,
+      appId: appId ?? "",
+      severity: severity ?? "",
+      kind: kind ?? "",
+      model: model ?? "",
+      limit,
+      offset,
+      from: from ?? "",
+      to: to ?? "",
+      ...parsed.params,
+    },
+    format: "JSONEachRow",
+  });
+
+  return result.json<AIEventRow>();
+}
+
+// AITokenBucket is one data point for the token-usage-over-time chart.
+export interface AITokenBucket {
+  bucket: string;
+  model: string;
+  total_tokens: number;
+}
+
+// AICostByModel is one row for the cost-by-model bar chart.
+export interface AICostByModel {
+  model: string;
+  total_cost_usd: number;
+  calls: number;
+}
+
+// AILatencyByModel is one row for the latency percentiles bar chart.
+export interface AILatencyByModel {
+  model: string;
+  p50: number;
+  p95: number;
+  p99: number;
+  calls: number;
+}
+
+// AIWorkflowCost is one row for the top-workflows-by-cost table.
+export interface AIWorkflowCost {
+  workflow_name: string;
+  total_cost_usd: number;
+  runs: number;
+  p95_ms: number;
+}
+
+// queryAIStats runs one of four aggregation queries used by the AI dashboard widgets.
+export async function queryAIStats(
+  orgId: string,
+  metric: "tokens-over-time" | "cost-by-model" | "latency-by-model" | "workflow-cost",
+  opts?: { from?: string; to?: string },
+): Promise<AITokenBucket[] | AICostByModel[] | AILatencyByModel[] | AIWorkflowCost[]> {
+  const fromClause = opts?.from ? "AND timestamp >= {from: DateTime64(3)}" : "AND timestamp >= now() - INTERVAL 24 HOUR";
+  const toClause   = opts?.to   ? "AND timestamp <= {to: DateTime64(3)}"   : "";
+  const params     = { orgId, ...(opts?.from ? { from: opts.from } : {}), ...(opts?.to ? { to: opts.to } : {}) };
+
+  if (metric === "tokens-over-time") {
+    const r = await clickhouse.query({
+      query: `
+        SELECT
+          formatDateTime(toStartOfHour(timestamp), '%Y-%m-%d %H:00:00') AS bucket,
+          JSONExtractString(payload, 'model')                            AS model,
+          SUM(JSONExtractInt(payload, 'total_tokens'))                   AS total_tokens
+        FROM watcher.events
+        WHERE organization_id = {orgId: String}
+          AND event_type = 'ai'
+          AND JSONExtractString(payload, 'kind') = 'llm_call'
+          ${fromClause} ${toClause}
+        GROUP BY bucket, model
+        ORDER BY bucket ASC
+      `,
+      query_params: params,
+      format: "JSONEachRow",
+    });
+    return r.json<AITokenBucket>();
+  }
+
+  if (metric === "cost-by-model") {
+    const r = await clickhouse.query({
+      query: `
+        SELECT
+          JSONExtractString(payload, 'model')        AS model,
+          SUM(JSONExtractFloat(payload, 'cost_usd')) AS total_cost_usd,
+          COUNT()                                    AS calls
+        FROM watcher.events
+        WHERE organization_id = {orgId: String}
+          AND event_type = 'ai'
+          AND JSONExtractString(payload, 'kind') = 'llm_call'
+          ${fromClause} ${toClause}
+        GROUP BY model
+        ORDER BY total_cost_usd DESC
+      `,
+      query_params: params,
+      format: "JSONEachRow",
+    });
+    return r.json<AICostByModel>();
+  }
+
+  if (metric === "latency-by-model") {
+    const r = await clickhouse.query({
+      query: `
+        SELECT
+          JSONExtractString(payload, 'model')                        AS model,
+          quantile(0.50)(JSONExtractFloat(payload, 'latency_ms'))    AS p50,
+          quantile(0.95)(JSONExtractFloat(payload, 'latency_ms'))    AS p95,
+          quantile(0.99)(JSONExtractFloat(payload, 'latency_ms'))    AS p99,
+          COUNT()                                                    AS calls
+        FROM watcher.events
+        WHERE organization_id = {orgId: String}
+          AND event_type = 'ai'
+          AND JSONExtractString(payload, 'kind') = 'llm_call'
+          ${fromClause} ${toClause}
+        GROUP BY model
+        ORDER BY p95 DESC
+      `,
+      query_params: params,
+      format: "JSONEachRow",
+    });
+    return r.json<AILatencyByModel>();
+  }
+
+  // workflow-cost
+  const r = await clickhouse.query({
+    query: `
+      SELECT
+        JSONExtractString(payload, 'workflow_name')                 AS workflow_name,
+        SUM(JSONExtractFloat(payload, 'total_cost_usd'))            AS total_cost_usd,
+        COUNT()                                                     AS runs,
+        quantile(0.95)(JSONExtractFloat(payload, 'duration_ms'))    AS p95_ms
+      FROM watcher.events
+      WHERE organization_id = {orgId: String}
+        AND event_type = 'ai'
+        AND JSONExtractString(payload, 'kind') = 'workflow_end'
+        ${fromClause} ${toClause}
+      GROUP BY workflow_name
+      ORDER BY total_cost_usd DESC
+      LIMIT 10
+    `,
+    query_params: params,
+    format: "JSONEachRow",
+  });
+  return r.json<AIWorkflowCost>();
+}
+
 // getMonthlyEventCount returns the number of events ingested by an org in the
 // current calendar month. Used by the billing usage meter.
 export async function getMonthlyEventCount(orgId: string): Promise<number> {

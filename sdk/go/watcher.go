@@ -125,6 +125,30 @@ func (c *Client) Metric(message string, opts ...EventOption) error {
 	return c.capture(EventTypeMetric, SeverityInfo, message, opts...)
 }
 
+// AI records an AI agent event — LLM calls, tool calls, workflow steps, evals.
+// severity must be one of the SeverityXxx constants.
+// Always attach a Payload with a "kind" field so the console can display
+// AI-specific columns (model, tokens, cost, latency).
+//
+//	client.AI(watcher.SeverityInfo, "llm.call.completed",
+//	    watcher.WithTraceID(traceID),
+//	    watcher.WithSpanID(spanID),
+//	    watcher.WithPayload(map[string]any{
+//	        "kind":           "llm_call",
+//	        "provider":       "openai",
+//	        "model":          "gpt-4o",
+//	        "total_tokens":   1240,
+//	        "cost_usd":       0.0037,
+//	        "latency_ms":     820,
+//	    }),
+//	)
+func (c *Client) AI(severity, message string, opts ...EventOption) error {
+	if !validSeverities[severity] {
+		return fmt.Errorf("watcher: invalid severity %q — use a SeverityXxx constant", severity)
+	}
+	return c.capture(EventTypeAI, severity, message, opts...)
+}
+
 // Event records a generic event when the typed helpers don't fit.
 // eventType must be one of the EventTypeXxx constants.
 // severity must be one of the SeverityXxx constants.

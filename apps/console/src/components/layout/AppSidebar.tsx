@@ -15,6 +15,7 @@ import {
   Zap,
   ShieldAlert,
   LayoutDashboard,
+  Bot,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -24,6 +25,7 @@ const NAV_ITEMS = [
   { href: "/audit", label: "Audit", icon: Shield },
   { href: "/logs", label: "Logs", icon: FileText },
   { href: "/traces", label: "Traces", icon: GitBranch },
+  { href: "/ai", label: "AI", icon: Bot },
   { href: "/metrics", label: "Metrics", icon: BarChart2 },
   { href: "/settings", label: "Settings", icon: Settings },
 ] as const;

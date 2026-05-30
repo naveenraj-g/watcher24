@@ -12,7 +12,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from watcher_sdk.integrations.fastapi import instrument
 
-from src.routers import auth, notes, test
+from src.routers import auth, notes, test, ai
 from src.watcher import client
 
 
@@ -41,6 +41,7 @@ instrument(app, client)
 app.include_router(auth.router)
 app.include_router(notes.router)
 app.include_router(test.router)
+app.include_router(ai.router)
 
 
 @app.get("/health")
