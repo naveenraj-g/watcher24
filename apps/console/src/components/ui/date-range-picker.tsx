@@ -24,7 +24,7 @@ const PRESET_KEYS = Object.keys(TIME_RANGE_PRESETS) as TimeRangeKey[];
 export function DateRangePicker() {
   const [range, setRange] = useQueryState(
     "range",
-    parseAsStringLiteral(PRESET_KEYS).withDefault(DEFAULT_RANGE),
+    parseAsStringLiteral(PRESET_KEYS).withDefault(DEFAULT_RANGE).withOptions({ shallow: false }),
   );
 
   const label = TIME_RANGE_PRESETS[range]?.label ?? TIME_RANGE_PRESETS[DEFAULT_RANGE].label;
