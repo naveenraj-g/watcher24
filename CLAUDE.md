@@ -310,7 +310,8 @@ These are the docs users read at `/docs` in the console. They must reflect reali
   - `sdk/js/packages/node/` — Node.js transport
   - `sdk/python/src/watcher_sdk/` — Python client and HTTP transport
   - `sdk/go/` — Go client
-- Update the SDK docs (`sdk/js/docs/api.md`, `sdk/python/docs/api.md`, `sdk/go/docs/api.md`) to reflect the change.
+  - `sdk/rust/src/` — Rust client
+- Update the SDK docs (`sdk/js/docs/api.md`, `sdk/python/docs/api.md`, `sdk/go/docs/api.md`, `sdk/rust/docs/api.md`) to reflect the change.
 - Update the matching console MDX SDK docs (`apps/console/src/content/docs/sdks/`).
 - If the SDK API surface changes (new method, removed param, new optional field), bump the version comment at the top of the relevant client file.
 
@@ -319,6 +320,7 @@ These are the docs users read at `/docs` in the console. They must reflect reali
 - `examples/react-node/` — React SPA + Node.js backend example
 - `examples/fastapi/` — FastAPI + Python SDK example
 - `examples/go/` — Go service example
+- `examples/rust/` — Rust service example
 - Keep `.env.example` files in each example up to date with new required/optional variables.
 - Example code must demonstrate new features with correct, working code and inline comments explaining the WHY.
 

@@ -25,6 +25,7 @@ export const docsNav: NavSection[] = [
       { title: "JavaScript / Node.js", href: "/docs/sdks/javascript" },
       { title: "Python", href: "/docs/sdks/python" },
       { title: "Go", href: "/docs/sdks/go" },
+      { title: "Rust", href: "/docs/sdks/rust" },
       { title: "Next.js", href: "/docs/sdks/nextjs" },
     ],
   },

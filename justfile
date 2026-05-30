@@ -145,6 +145,24 @@ sdk-go-build:
 sdk-go-lint:
     just -f sdk/go/justfile lint
 
+# ── Rust SDK ──────────────────────────────────────────────────────────────────
+
+# Test the Rust SDK
+sdk-rust-test:
+    just -f sdk/rust/justfile test
+
+# Test the Rust SDK with coverage (requires cargo-tarpaulin)
+sdk-rust-test-cov:
+    just -f sdk/rust/justfile test-cov
+
+# Build the Rust SDK
+sdk-rust-build:
+    just -f sdk/rust/justfile build
+
+# Lint the Rust SDK
+sdk-rust-lint:
+    just -f sdk/rust/justfile lint
+
 # ── Run all tests ─────────────────────────────────────────────────────────────
 
 # Run every test suite in the monorepo
@@ -155,3 +173,4 @@ test-all:
     just sdk-python-test
     just sdk-js-test
     just sdk-go-test
+    just sdk-rust-test
