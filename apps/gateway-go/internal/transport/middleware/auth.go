@@ -40,9 +40,10 @@ const (
 // For all keys: extracts and validates the key, stores org/app context in locals.
 //
 // For public tokens additionally:
-//   - Verifies the Origin header is in the token's AllowedOrigins list (403 if not).
-//     This is the primary security boundary — it prevents a leaked token from being
-//     used from any site the owner did not explicitly allow.
+//   - If Origin header is present (browser), verifies it is in the token's AllowedOrigins
+//     list (403 if not). This prevents a leaked token from being used from unlisted sites.
+//   - If Origin header is absent (native mobile / desktop app), the request is allowed —
+//     native clients never send Origin, so origin restriction is a browser-only concept.
 //   - Stores key type and rate-limit cap so the handler can enforce per-minute limits.
 //
 // On any failure, the middleware short-circuits with an appropriate HTTP response
@@ -91,12 +92,18 @@ func Auth(validator ports.KeyValidator) fiber.Handler {
 	}
 }
 
-// originAllowed returns true if origin is present in the allowlist.
+// originAllowed returns true if the request origin is permitted for this public token.
 // An empty allowlist (secret keys) is never checked — callers must guard with KeyTypePublic.
-// An empty origin string is rejected for public tokens so curl/server-side misuse is blocked.
+//
+// Empty origin string = native client (mobile app, desktop app, curl).
+// Browsers always send Origin; native clients never do. Allowing empty-origin requests
+// means public tokens work for both browser and mobile SDKs. The token is still
+// write-only and rate-limited regardless of origin, so the attack surface is bounded.
+// Only reject when a browser sends an Origin that is not in the allowlist.
 func originAllowed(origin string, allowedOrigins []string) bool {
 	if origin == "" {
-		return false
+		// No Origin header — native client (React Native, Swift, Kotlin, etc.).
+		return true
 	}
 	for _, allowed := range allowedOrigins {
 		if strings.EqualFold(origin, allowed) {
