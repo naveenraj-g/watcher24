@@ -48,8 +48,9 @@ atexit.register(client.shutdown)
 | `service_name` | `str` | No | Label the sending component (e.g. `"payment-api"`, `"ai-agent"`). Stored for filtering in the dashboard. |
 | `environment` | `str` | No | Defaults to `"production"` |
 | `gateway_url` | `str` | No | Override the ingest endpoint. Defaults to <GatewayUrl />. Only needed for self-hosted deployments or local dev. |
-| `flush_interval` | `float` | No | Flush interval in seconds (default `0.5`) |
-| `flush_at` | `int` | No | Flush when buffer reaches this size (default `100`) |
+| `flush_interval` | `float` | No | How often the background thread sends events (seconds). Default: `0.5` |
+| `flush_at` | `int` | No | Buffer size that triggers an immediate flush. Default: `100` |
+| `max_buffer` | `int` | No | Maximum events held in memory; oldest dropped when full. Default: `10 000` |
 
 ## Audit events
 

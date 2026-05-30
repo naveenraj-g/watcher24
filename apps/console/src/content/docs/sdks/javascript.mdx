@@ -60,8 +60,9 @@ process.on("SIGINT",  () => watcher.shutdown());
 | `serviceName` | `string` | No | Label the sending component (e.g. `"payment-api"`, `"ai-agent"`). Stored for filtering in the dashboard. |
 | `environment` | `string` | No | Defaults to `"production"` |
 | `gatewayUrl` | `string` | No | Override the ingest endpoint. Defaults to <GatewayUrl />. Only needed for self-hosted deployments or local dev. |
-| `flushInterval` | `number` | No | Flush interval in ms (default `500`) |
-| `flushAt` | `number` | No | Flush when buffer reaches this size (default `100`) |
+| `flushInterval` | `number` | No | How often the background flusher sends events (ms). Default: `500` |
+| `flushAt` | `number` | No | Buffer size that triggers an immediate flush. Default: `100` |
+| `maxBuffer` | `number` | No | Maximum events held in memory; oldest dropped when full. Default: `10 000` |
 
 ### Audit events
 

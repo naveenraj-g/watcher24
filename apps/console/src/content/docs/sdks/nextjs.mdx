@@ -32,13 +32,23 @@ declare global {
 export const watcher =
   globalThis.__watcher ??
   (globalThis.__watcher = createNextServerClient({
-    apiKey: process.env.W24_API_KEY!,
-    // serviceName labels this component in the dashboard — useful when you
-    // have multiple Next.js apps or want to separate server from browser events.
-    serviceName: "nextjs-server",  // optional
+    apiKey:      process.env.W24_API_KEY!,
+    appId:       process.env.W24_APP_ID,        // links events to a registered app
+    serviceName: process.env.W24_SERVICE_NAME,  // e.g. "nextjs-server"
     environment: process.env.NODE_ENV === "production" ? "production" : "development",
   }));
 ```
+
+| Option | Type | Required | Description |
+|--------|------|----------|-------------|
+| `apiKey` | `string` | **Yes** | Secret key (`wtch_` prefix) from Settings → API Keys |
+| `appId` | `string` | No | Links events to a registered application. Get the ID from Settings → Apps. |
+| `serviceName` | `string` | No | Component label (e.g. `"nextjs-server"`). Sent as `X-Service-Name`. |
+| `environment` | `string` | No | Deployment stage. Default: `"production"` |
+| `gatewayUrl` | `string` | No | Override for self-hosted deployments. Default: `https://ingest.watcher24.io` |
+| `flushInterval` | `number` | No | How often the background flusher sends events (ms). Default: `500` |
+| `flushAt` | `number` | No | Buffer size that triggers an immediate flush. Default: `100` |
+| `maxBuffer` | `number` | No | Maximum events held in memory; oldest dropped when full. Default: `10 000` |
 
 ## Server Components
 
@@ -141,10 +151,12 @@ Browser events are automatically tagged `source: "client"` in the dashboard; ser
 # .env.local
 
 # Server-only — never exposed to the browser
-W24_API_KEY=wt_...
-W24_GATEWAY_URL=https://ingest.watcher24.io   # optional
+W24_API_KEY=wtch_...                           # required — from Settings → API Keys
+W24_APP_ID=your_app_id_here                    # optional — from Settings → Apps
+W24_SERVICE_NAME=nextjs-server                 # optional
+W24_GATEWAY_URL=https://ingest.watcher24.io    # optional — override for self-hosted
 
 # Browser-safe — public token (write-only, origin-restricted)
 NEXT_PUBLIC_W24_PUBLIC_TOKEN=wpub_...
-NEXT_PUBLIC_W24_GATEWAY_URL=https://ingest.watcher24.io
+NEXT_PUBLIC_W24_GATEWAY_URL=https://ingest.watcher24.io   # optional
 ```
