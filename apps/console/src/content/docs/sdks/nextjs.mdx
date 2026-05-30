@@ -79,7 +79,7 @@ import { watcherMiddleware } from "@watcher/nextjs";
 
 export const middleware = watcherMiddleware({
   apiKey: process.env.W24_API_KEY!,
-  // appId only needed for legacy org-level keys — app-scoped keys resolve automatically.
+  // appId links events to a registered app — get the ID from Settings → Apps.
 });
 
 export const config = { matcher: ["/api/:path*"] };

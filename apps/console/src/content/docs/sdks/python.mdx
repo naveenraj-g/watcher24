@@ -22,6 +22,7 @@ from watcher_sdk import Client
 
 client = Client(
     api_key=os.environ["W24_API_KEY"],
+    app_id=os.environ.get("W24_APP_ID"),      # links events to a registered app
     # service_name labels the sending component — shown in the Service column
     # in the dashboard. Examples: "payment-api", "auth-worker", "ai-agent".
     service_name=os.environ.get("W24_SERVICE_NAME", ""),  # optional
@@ -42,8 +43,8 @@ atexit.register(client.shutdown)
 
 | Option | Type | Required | Description |
 |--------|------|----------|-------------|
-| `api_key` | `str` | Yes | Server API key (starts with `wt_`) |
-| `app_id` | `str` | No | Only needed for legacy org-level keys. App-scoped keys resolve the application automatically. |
+| `api_key` | `str` | Yes | Secret key (`wtch_` prefix) from Settings → API Keys |
+| `app_id` | `str` | No | Links events to a registered application in the dashboard. Get the ID from Settings → Apps. |
 | `service_name` | `str` | No | Label the sending component (e.g. `"payment-api"`, `"ai-agent"`). Stored for filtering in the dashboard. |
 | `environment` | `str` | No | Defaults to `"production"` |
 | `gateway_url` | `str` | No | Override the ingest endpoint. Defaults to <GatewayUrl />. Only needed for self-hosted deployments or local dev. |
@@ -187,7 +188,8 @@ All options after `message` are keyword-only. Use `payload={"port": 3000}` — n
 ## Environment variables
 
 ```bash
-W24_API_KEY=wt_...              # required
+W24_API_KEY=wtch_...            # required — secret key from Settings → API Keys
+W24_APP_ID=your_app_id_here    # optional — from Settings → Apps
 W24_SERVICE_NAME=my-service    # optional — component label for filtering
 W24_ENVIRONMENT=production     # optional
 

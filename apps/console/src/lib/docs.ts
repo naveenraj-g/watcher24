@@ -31,12 +31,23 @@ function slugToPath(slug: string[]): string {
 }
 
 // Read raw MDX + frontmatter for a given slug.
+// Tries <slug>.mdx first, then <slug>/index.mdx so that directory index pages
+// (e.g. sdks/index.mdx) are served at /docs/sdks without a separate route.
 export function getDoc(slug: string[]): {
   frontmatter: DocFrontmatter;
   content: string;
 } | null {
-  const filePath = slugToPath(slug);
-  if (!fs.existsSync(filePath)) return null;
+  const candidates =
+    slug.length === 0
+      ? [path.join(DOCS_DIR, "index.mdx")]
+      : [
+          path.join(DOCS_DIR, ...slug) + ".mdx",
+          path.join(DOCS_DIR, ...slug, "index.mdx"),
+        ];
+
+  const filePath = candidates.find((p) => fs.existsSync(p));
+  if (!filePath) return null;
+
   const raw = fs.readFileSync(filePath, "utf-8");
   const { data, content } = matter(raw);
   return {

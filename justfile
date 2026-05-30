@@ -127,6 +127,24 @@ sdk-js-test:
 sdk-js-install:
     cd sdk/js && pnpm install
 
+# ── Go SDK ────────────────────────────────────────────────────────────────────
+
+# Test the Go SDK
+sdk-go-test:
+    just -f sdk/go/justfile test
+
+# Test the Go SDK with coverage
+sdk-go-test-cov:
+    just -f sdk/go/justfile test-cov
+
+# Build the Go SDK
+sdk-go-build:
+    just -f sdk/go/justfile build
+
+# Lint the Go SDK
+sdk-go-lint:
+    just -f sdk/go/justfile lint
+
 # ── Run all tests ─────────────────────────────────────────────────────────────
 
 # Run every test suite in the monorepo
@@ -136,3 +154,4 @@ test-all:
     just realtime-test
     just sdk-python-test
     just sdk-js-test
+    just sdk-go-test

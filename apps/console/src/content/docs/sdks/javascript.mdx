@@ -39,6 +39,7 @@ import { createNodeClient } from "@watcher/node";
 
 export const watcher = createNodeClient({
   apiKey: process.env.W24_API_KEY!,
+  appId: process.env.W24_APP_ID,            // links events to a registered app
   // serviceName labels this component in the dashboard — useful when multiple
   // services send to the same app (e.g. "payment-api", "auth-worker").
   serviceName: process.env.W24_SERVICE_NAME,   // optional
@@ -54,8 +55,8 @@ process.on("SIGINT",  () => watcher.shutdown());
 
 | Option | Type | Required | Description |
 |--------|------|----------|-------------|
-| `apiKey` | `string` | Yes | Server API key (starts with `wt_`) |
-| `appId` | `string` | No | Only needed for legacy org-level keys. App-scoped keys resolve the application automatically. |
+| `apiKey` | `string` | Yes | Secret key (`wtch_` prefix) from Settings → API Keys |
+| `appId` | `string` | No | Links events to a registered application in the dashboard. Get the ID from Settings → Apps. |
 | `serviceName` | `string` | No | Label the sending component (e.g. `"payment-api"`, `"ai-agent"`). Stored for filtering in the dashboard. |
 | `environment` | `string` | No | Defaults to `"production"` |
 | `gatewayUrl` | `string` | No | Override the ingest endpoint. Defaults to <GatewayUrl />. Only needed for self-hosted deployments or local dev. |
@@ -225,7 +226,8 @@ client.shutdown(): Promise<void>
 
 ```bash
 # Server-side (never expose to the browser)
-W24_API_KEY=wt_...
+W24_API_KEY=wtch_...
+W24_APP_ID=your_app_id_here    # optional — from Settings → Apps
 W24_SERVICE_NAME=my-api       # optional — component label for filtering
 W24_ENVIRONMENT=production    # optional
 
