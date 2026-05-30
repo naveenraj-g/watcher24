@@ -18,6 +18,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { prisma } from "../../../../../prisma/db";
+import { getOrgPlan, PLAN_LIMITS } from "@/modules/server/auth-provider/plan-limits";
 
 const INTERNAL_SECRET = process.env.INTERNAL_API_SECRET;
 
@@ -147,6 +148,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       { error: "Organisation not found" },
       { status: 404 },
+    );
+  }
+
+  // Enforce per-plan public token limit before creating.
+  const plan = await getOrgPlan(orgId);
+  const tokenLimit = PLAN_LIMITS[plan].publicTokens;
+  const tokenCount = await prisma.apikey.count({
+    where: { referenceId: orgId, keyType: "public", enabled: true },
+  });
+  if (tokenCount >= tokenLimit) {
+    return NextResponse.json(
+      { error: `Your plan allows up to ${tokenLimit} public token${tokenLimit === 1 ? "" : "s"}. Upgrade your plan to create more.` },
+      { status: 403 },
     );
   }
 

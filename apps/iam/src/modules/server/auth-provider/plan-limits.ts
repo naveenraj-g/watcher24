@@ -15,7 +15,11 @@ export const PLAN_LIMITS = {
     teams:          1,
     membersPerTeam: 3,
     applications:   2,
+    // Secret keys (server-side, wtch_ prefix) and public tokens (browser-side,
+    // wpub_ prefix) have independent quotas — a free org gets 2 of each, not
+    // 2 shared across both types.
     apiKeys:        2,
+    publicTokens:   2,
   },
   pro: {
     organizations:  5,
@@ -23,6 +27,7 @@ export const PLAN_LIMITS = {
     membersPerTeam: 20,
     applications:   10,
     apiKeys:        20,
+    publicTokens:   10,
   },
   enterprise: {
     // Number.MAX_SAFE_INTEGER used instead of Infinity so the value is
@@ -32,6 +37,7 @@ export const PLAN_LIMITS = {
     membersPerTeam: Number.MAX_SAFE_INTEGER,
     applications:   Number.MAX_SAFE_INTEGER,
     apiKeys:        Number.MAX_SAFE_INTEGER,
+    publicTokens:   Number.MAX_SAFE_INTEGER,
   },
 } as const;
 
