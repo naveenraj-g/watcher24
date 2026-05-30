@@ -45,6 +45,11 @@ infrastructure/postgres/data/
 .claude
 skills-lock.json
 
+# Allow project-level Claude skills so they are shared with the team
+!sdk/.claude/
+!sdk/.claude/skills/
+!sdk/.claude/skills/**
+
 /logs
 logs
 
