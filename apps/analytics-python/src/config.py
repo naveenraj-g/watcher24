@@ -36,8 +36,8 @@ class Config:
     block_ms: int = 2000      # milliseconds to block when stream is empty
 
     # Which workers to run — comma-separated list
-    # e.g. "audit,log,trace,metric"
-    workers: list[str] = field(default_factory=lambda: ["audit", "log", "trace", "metric"])
+    # e.g. "audit,log,trace,metric,ai"
+    workers: list[str] = field(default_factory=lambda: ["audit", "log", "trace", "metric", "ai"])
 
     # IAM service — used by the retention scheduler to fetch per-org retention windows.
     # The scheduler calls GET /api/internal/orgs/retention with x-internal-secret.
@@ -57,7 +57,7 @@ def load_config() -> Config:
     # Try project root .env for local dev; silently ignored in production.
     load_dotenv(dotenv_path="../../.env")
 
-    workers_raw = os.getenv("WORKERS", "audit,log,trace,metric")
+    workers_raw = os.getenv("WORKERS", "audit,log,trace,metric,ai")
     workers = [w.strip() for w in workers_raw.split(",") if w.strip()]
 
     return Config(

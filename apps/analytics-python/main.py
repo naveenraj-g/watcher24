@@ -31,6 +31,7 @@ from src.adapters.redis_adapter.consumer import RedisStreamConsumer
 from src.config import load_config
 from src.usecases.process_batch import ProcessBatchUseCase
 from src.usecases.purge_expired_events import PurgeExpiredEventsUseCase
+from src.workers.ai_worker import AIWorker
 from src.workers.audit_worker import AuditWorker
 from src.workers.log_worker import LogWorker
 from src.workers.metric_worker import MetricWorker
@@ -49,6 +50,7 @@ WORKER_REGISTRY = {
     "log": LogWorker,
     "trace": TraceWorker,
     "metric": MetricWorker,
+    "ai": AIWorker,
 }
 
 
