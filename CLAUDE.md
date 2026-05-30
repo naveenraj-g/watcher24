@@ -268,12 +268,13 @@ Only tables that are NOT owned by IAM — e.g., `applications` (the Watcher24-sp
 
 ---
 
-### 10. Keep Internal Docs, SDKs, and Example Apps in Sync (mandatory)
+### 10. Keep Internal Docs, SDKs, Console Docs, and Example Apps in Sync (mandatory)
 
 Every time you add a feature, change an API, or modify behaviour in any app, you **must** read
-and update the relevant internal documentation, SDK code/docs, and example applications before committing.
+and update the relevant internal documentation, console-facing MDX docs, SDK code/docs, and
+example applications **in the same commit**. Never split doc updates into a later commit.
 
-**Docs to check on every change:**
+**Internal docs to check on every change:**
 
 | Change type | Docs to update |
 |-------------|---------------|
@@ -284,29 +285,45 @@ and update the relevant internal documentation, SDK code/docs, and example appli
 | New IAM internal endpoint | `apps/iam/docs/api.md` (mandatory per Rule 9) |
 | Console UI feature visible to users | `apps/console/docs/api.md` (if a new route was added) |
 
+**Console MDX docs — always check when anything user-facing changes:**
+
+These are the docs users read at `/docs` in the console. They must reflect reality, not aspirational behaviour.
+
+| Change type | Console MDX docs to update |
+|-------------|---------------------------|
+| New or changed SDK method / option | `apps/console/src/content/docs/sdks/<lang>.mdx` |
+| New event type, field, or gateway behaviour | `apps/console/src/content/docs/api/ingestion.mdx` |
+| New platform concept (retention, limits, quotas, etc.) | `apps/console/src/content/docs/concepts/<topic>.mdx` |
+| New SDK added | Create `apps/console/src/content/docs/sdks/<lang>.mdx` + add to `docs-nav.ts` + add to `sdks/index.mdx` |
+| Billing plan limits changed | `apps/console/src/content/docs/concepts/` (whichever concept page describes that limit) |
+| Any behaviour described in an existing concept doc that changed | Update the concept doc — never leave it describing an implementation that no longer exists |
+
+**Rules for console MDX docs:**
+- Every MDX doc must describe the **actual current implementation**, never a planned or aspirational one.
+- If a concept doc describes how something works technically (e.g. how retention is enforced), it must match the code exactly — wrong technical descriptions are worse than no documentation.
+- Docs must be updated in the **same commit** as the code change, not after.
+
 **SDKs — always update when the platform changes:**
 - If you add a new event type, token type, or field that SDKs send or receive, update all SDKs:
   - `sdk/js/packages/core/` — shared types and client facade
   - `sdk/js/packages/browser/` — browser transport and public-token helpers
   - `sdk/js/packages/node/` — Node.js transport
   - `sdk/python/src/watcher_sdk/` — Python client and HTTP transport
-- Update the SDK docs (`sdk/js/docs/api.md`, `sdk/python/docs/api.md`) to reflect the change.
+  - `sdk/go/` — Go client
+- Update the SDK docs (`sdk/js/docs/api.md`, `sdk/python/docs/api.md`, `sdk/go/docs/api.md`) to reflect the change.
+- Update the matching console MDX SDK docs (`apps/console/src/content/docs/sdks/`).
 - If the SDK API surface changes (new method, removed param, new optional field), bump the version comment at the top of the relevant client file.
 
 **Example apps — always update when the SDK or gateway changes:**
 - `examples/nextjs/` — Next.js full-stack example (server + browser SDKs)
 - `examples/react-node/` — React SPA + Node.js backend example
 - `examples/fastapi/` — FastAPI + Python SDK example
+- `examples/go/` — Go service example
 - Keep `.env.example` files in each example up to date with new required/optional variables.
 - Example code must demonstrate new features with correct, working code and inline comments explaining the WHY.
 
-**Console MDX docs:**
-- If you change how the SDK is used (method signatures, env vars, package names), also update
-  the relevant MDX pages in `apps/console/src/content/docs/` and `apps/console/src/content/docs/sdks/`.
-- If the gateway's accepted request shape changes, check `apps/console/src/content/docs/api/ingestion.mdx`.
-
 **The rule in one sentence:**  
-_A feature is not done until the docs, SDKs, and example apps all reflect it._
+_A feature is not done until the internal docs, console MDX docs, SDKs, and example apps all reflect it — in the same commit._
 
 ---
 
