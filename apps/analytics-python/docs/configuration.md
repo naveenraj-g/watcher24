@@ -13,6 +13,9 @@
 | `WORKER_BATCH_SIZE` | `100` | Events read per XREADGROUP call |
 | `WORKER_BLOCK_MS` | `2000` | Milliseconds to block waiting for new messages |
 | `WORKERS` | `audit,log,trace,metric` | Comma-separated list of workers to run |
+| `IAM_BASE_URL` | `http://localhost:3001` | Base URL of the IAM service — used by the retention scheduler |
+| `IAM_INTERNAL_SECRET` | _(empty)_ | Shared secret sent as `x-internal-secret` to IAM internal endpoints |
+| `RETENTION_INTERVAL_SECONDS` | `86400` | How often the retention scheduler runs a purge pass (seconds) |
 
 ---
 

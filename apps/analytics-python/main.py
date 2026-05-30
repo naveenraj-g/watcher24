@@ -11,7 +11,8 @@ Startup order:
   3. Create adapters (implement ports)
   4. Create use cases (inject adapters via port interfaces)
   5. Create workers (inject consumers + use cases)
-  6. Start all workers in threads
+  6. Start retention scheduler (periodic purge of expired events)
+  7. Block until workers exit
 """
 
 from __future__ import annotations
@@ -25,12 +26,15 @@ import clickhouse_connect
 import redis
 
 from src.adapters.clickhouse_adapter.repository import ClickHouseEventRepository
+from src.adapters.clickhouse_adapter.retention import ClickHouseRetentionRepository
 from src.adapters.redis_adapter.consumer import RedisStreamConsumer
 from src.config import load_config
 from src.usecases.process_batch import ProcessBatchUseCase
+from src.usecases.purge_expired_events import PurgeExpiredEventsUseCase
 from src.workers.audit_worker import AuditWorker
 from src.workers.log_worker import LogWorker
 from src.workers.metric_worker import MetricWorker
+from src.workers.retention_scheduler import RetentionScheduler
 from src.workers.trace_worker import TraceWorker
 
 logging.basicConfig(
@@ -134,6 +138,35 @@ def main() -> None:
     if not threads:
         logger.critical("analytics-worker: no workers started — check WORKERS env var")
         raise SystemExit(1)
+
+    # ── 6. Start retention scheduler ─────────────────────────────────────────
+    # Dedicated ClickHouse client for the retention scheduler — clickhouse_connect
+    # is not thread-safe, so the scheduler must not share a client with any worker.
+    retention_ch_client = clickhouse_connect.get_client(
+        host=cfg.clickhouse_host,
+        port=cfg.clickhouse_port,
+        database=cfg.clickhouse_db,
+        username=cfg.clickhouse_user,
+        password=cfg.clickhouse_password,
+    )
+    retention_repo = ClickHouseRetentionRepository(retention_ch_client)
+    purge_use_case = PurgeExpiredEventsUseCase(
+        retention_repo=retention_repo,
+        iam_base_url=cfg.iam_base_url,
+        iam_internal_secret=cfg.iam_internal_secret,
+    )
+    scheduler = RetentionScheduler(
+        use_case=purge_use_case,
+        interval_seconds=cfg.retention_interval_seconds,
+    )
+    retention_thread = threading.Thread(
+        target=scheduler.run,
+        name="retention-scheduler",
+        daemon=True,
+    )
+    threads.append(retention_thread)
+    retention_thread.start()
+    logger.info("analytics-worker: retention scheduler started (interval=%ds)", cfg.retention_interval_seconds)
 
     logger.info("analytics-worker: all workers running")
 

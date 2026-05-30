@@ -39,6 +39,15 @@ class Config:
     # e.g. "audit,log,trace,metric"
     workers: list[str] = field(default_factory=lambda: ["audit", "log", "trace", "metric"])
 
+    # IAM service — used by the retention scheduler to fetch per-org retention windows.
+    # The scheduler calls GET /api/internal/orgs/retention with x-internal-secret.
+    iam_base_url: str = "http://localhost:3001"
+    iam_internal_secret: str = ""
+
+    # Retention scheduler — how often to run the data purge pass (seconds).
+    # Default: 86400 (24 hours). Lower values are useful in dev/testing.
+    retention_interval_seconds: int = 86400
+
 
 def load_config() -> Config:
     """
@@ -61,4 +70,7 @@ def load_config() -> Config:
         batch_size=int(os.getenv("WORKER_BATCH_SIZE", "100")),
         block_ms=int(os.getenv("WORKER_BLOCK_MS", "2000")),
         workers=workers,
+        iam_base_url=os.getenv("IAM_BASE_URL", "http://localhost:3001"),
+        iam_internal_secret=os.getenv("IAM_INTERNAL_SECRET", ""),
+        retention_interval_seconds=int(os.getenv("RETENTION_INTERVAL_SECONDS", "86400")),
     )

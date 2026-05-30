@@ -225,3 +225,43 @@ Update name, description, or layout. Send only the fields to change.
 Delete a dashboard. Only the creator or an org admin/owner may delete.
 
 **Response (200):** `{ "ok": true }`
+
+---
+
+## Data Retention
+
+### GET /api/internal/orgs/retention
+
+Returns every organisation's retention window based on their active subscription plan.
+Called nightly by the `analytics-python` retention scheduler.
+
+**Auth:** `x-internal-secret` header (machine-to-machine, not user session).
+
+**Plan → retention days mapping:**
+
+| Plan | Retention |
+|------|-----------|
+| `enterprise` | 365 days |
+| `pro` | 90 days |
+| `free` (default) | 7 days |
+
+When an org has no active subscription, it defaults to `free` (7 days).
+When an org has multiple active subscriptions (edge case), the highest tier wins.
+
+**Response (200):**
+
+```json
+{
+  "orgs": [
+    { "orgId": "org_abc", "plan": "pro",        "retentionDays": 90  },
+    { "orgId": "org_xyz", "plan": "free",       "retentionDays": 7   },
+    { "orgId": "org_ent", "plan": "enterprise", "retentionDays": 365 }
+  ]
+}
+```
+
+**Error responses:**
+
+| Status | Meaning |
+|--------|---------|
+| 401 | Missing or wrong `x-internal-secret` |
