@@ -31,6 +31,12 @@ import { defaultStatements, adminAc } from "better-auth/plugins/admin/access";
 // local import
 import { prisma } from "../../../../prisma/db";
 import {
+  PLAN_LIMITS,
+  getOrgPlan,
+  getBestPlanForUser,
+  limitMessage,
+} from "./plan-limits";
+import {
   getEmailVerificationTemplate,
   getPasswordResetTemplate,
   getChangeEmailTemplate,
@@ -463,64 +469,116 @@ export const authConfig = {
     before: createAuthMiddleware(async (ctx) => {
       const token = ctx.getCookie(ctx.context.authCookies.sessionToken.name);
 
+      // ── Shared session resolver ──────────────────────────────────────────────
+      // Extracted inline so we don't repeat the cookie split on every path.
+      async function requireSession() {
+        if (!token)
+          throw new APIError("UNAUTHORIZED", {
+            message: "You must be logged in to perform this action",
+          });
+        const [sessionId] = token.split(".");
+        const session = await ctx.context.internalAdapter.findSession(sessionId);
+        if (!session)
+          throw new APIError("UNAUTHORIZED", {
+            message: "Session expired or invalid. Please log in again.",
+          });
+        return session;
+      }
+
       // ── OAuth authorize: block authenticated but unverified users ───────────
       if (ctx.path === "/oauth2/authorize") {
-        // Not authenticated — Better Auth redirects to loginPage automatically
         if (!token) return;
-
         const [sessionId] = token.split(".");
-        const session =
-          await ctx.context.internalAdapter.findSession(sessionId);
-
-        if (
-          session &&
-          !session.user.emailVerified &&
-          REQUIRE_EMAIL_VERIFICATION
-        ) {
-          // Preserve the full OAuth query string so the flow can resume after verification
+        const session = await ctx.context.internalAdapter.findSession(sessionId);
+        if (session && !session.user.emailVerified && REQUIRE_EMAIL_VERIFICATION) {
           const requestUrl = new URL(ctx.request?.url as string);
           const authorizeRelativeUrl = `/api/auth/oauth2/authorize?${requestUrl.searchParams.toString()}`;
           const appUrl = process.env.BETTER_AUTH_URL!;
           const location = `${appUrl}/auth/email-verification?email=${encodeURIComponent(session.user.email)}&redirect=${encodeURIComponent(authorizeRelativeUrl)}`;
-
-          return new Response(null, {
-            status: 302,
-            headers: { Location: location },
-          });
+          return new Response(null, { status: 302, headers: { Location: location } });
         }
-
         return;
       }
 
       // ── Admin-only paths ─────────────────────────────────────────────────────
-      const protectedPaths = new Set([
-        "/oauth2/create-client",
-        "/oauth2/register",
-      ]);
-
-      if (!protectedPaths.has(ctx.path)) return;
-
-      if (!token)
-        throw new APIError("UNAUTHORIZED", {
-          message: "You must be logged in to perform this action",
-        });
-
-      const [sessionId] = token.split(".");
-
-      const session = await ctx.context.internalAdapter.findSession(sessionId);
-
-      if (!session) {
-        throw new APIError("UNAUTHORIZED", {
-          message: "Session expired or invalid. Please log in again.",
-        });
+      if (ctx.path === "/oauth2/create-client" || ctx.path === "/oauth2/register") {
+        const session = await requireSession();
+        if (session.user.role !== "superadmin")
+          throw new APIError("FORBIDDEN", { message: "Only superadmin can create OAuth clients" });
+        return;
       }
 
-      const user = session.user;
+      // ── Plan limit: teams per organisation ───────────────────────────────────
+      // Fires when a user calls authClient.organization.createTeam().
+      // Resolves the org from the request body or the session's active org.
+      if (ctx.path === "/organization/create-team") {
+        const session = await requireSession();
+        const body = ctx.body as { organizationId?: string } | undefined;
+        const orgId =
+          body?.organizationId ??
+          (session.session as typeof session.session & { activeOrganizationId?: string | null })
+            .activeOrganizationId ??
+          null;
 
-      if (user.role !== "superadmin") {
-        throw new APIError("FORBIDDEN", {
-          message: "Only superadmin can create OAuth clients",
+        if (!orgId)
+          throw new APIError("BAD_REQUEST", { message: "No active organisation" });
+
+        const plan = await getOrgPlan(orgId);
+        const limit = PLAN_LIMITS[plan].teams;
+        const count = await prisma.team.count({ where: { organizationId: orgId } });
+
+        if (count >= limit)
+          throw new APIError("FORBIDDEN", { message: limitMessage("teams", limit) });
+
+        return;
+      }
+
+      // ── Plan limit: members per team ─────────────────────────────────────────
+      // Fires when a user calls authClient.organization.addTeamMember().
+      // The org plan is resolved via the team's organizationId.
+      if (ctx.path === "/organization/add-team-member") {
+        const body = ctx.body as { teamId?: string } | undefined;
+        if (!body?.teamId) return; // let better-auth handle the missing-field error
+
+        const team = await prisma.team.findUnique({
+          where: { id: body.teamId },
+          select: { organizationId: true },
         });
+        if (!team) return; // not found — let better-auth return 404
+
+        const plan = await getOrgPlan(team.organizationId);
+        const limit = PLAN_LIMITS[plan].membersPerTeam;
+        const count = await prisma.teamMember.count({ where: { teamId: body.teamId } });
+
+        if (count >= limit)
+          throw new APIError("FORBIDDEN", { message: limitMessage("members per team", limit) });
+
+        return;
+      }
+
+      // ── Plan limit: API keys per organisation ────────────────────────────────
+      // Fires when a user calls authClient.apiKey.create() or the console
+      // creates a key via the better-auth API. Counts only secret-type enabled
+      // keys scoped to the active org (referenceId = orgId).
+      if (ctx.path === "/api-key/create") {
+        const session = await requireSession();
+        const orgId = (
+          session.session as typeof session.session & { activeOrganizationId?: string | null }
+        ).activeOrganizationId ?? null;
+
+        // User-scoped keys (no active org) fall outside the org quota.
+        if (!orgId) return;
+
+        const plan = await getOrgPlan(orgId);
+        const limit = PLAN_LIMITS[plan].apiKeys;
+        const count = await prisma.apikey.count({
+          where: { referenceId: orgId, keyType: "secret", enabled: true },
+        });
+
+        if (count >= limit)
+          throw new APIError("FORBIDDEN", { message: limitMessage("API keys", limit) });
+
+        return;
       }
     }),
   },
@@ -570,13 +628,26 @@ export const authConfig = {
     }),
 
     organization({
-      allowUserToCreateOrganization: async () => {
-        return true;
+      // Enforce org creation limit based on the user's best current plan.
+      // Counts orgs the user owns (role = "owner"). A free user capped at 1
+      // can create more once they upgrade a current org to Pro (cap becomes 5).
+      allowUserToCreateOrganization: async (user) => {
+        const plan = await getBestPlanForUser(user.id);
+        const limit = PLAN_LIMITS[plan].organizations;
+        if (limit >= Number.MAX_SAFE_INTEGER) return true;
+        const ownedCount = await prisma.member.count({
+          where: { userId: user.id, role: "owner" },
+        });
+        return ownedCount < limit;
       },
+
       teams: {
         enabled: true,
         allowRemovingAllTeams: true,
+        // Static maximums are not used here because limits vary by plan.
+        // Dynamic enforcement is handled in hooks.before below.
       },
+
       ac,
       dynamicAccessControl: {
         enabled: true,

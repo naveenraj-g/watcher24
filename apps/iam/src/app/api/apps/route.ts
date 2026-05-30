@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/modules/server/auth-provider/auth";
 import { prisma } from "../../../../prisma/db";
+import { getOrgPlan, PLAN_LIMITS } from "@/modules/server/auth-provider/plan-limits";
 
 function slugify(name: string): string {
   return name
@@ -46,6 +47,17 @@ export async function POST(req: NextRequest) {
 
   const slug = slugify(name);
   if (!slug) return NextResponse.json({ error: "Invalid name — could not generate slug" }, { status: 400 });
+
+  // Enforce per-plan application limit before creating.
+  const plan = await getOrgPlan(orgId);
+  const appLimit = PLAN_LIMITS[plan].applications;
+  const appCount = await prisma.application.count({ where: { organizationId: orgId } });
+  if (appCount >= appLimit) {
+    return NextResponse.json(
+      { error: `Your plan allows up to ${appLimit} application${appLimit === 1 ? "" : "s"}. Upgrade your plan to create more.` },
+      { status: 403 },
+    );
+  }
 
   try {
     const app = await prisma.application.create({

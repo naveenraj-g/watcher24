@@ -77,7 +77,9 @@ interface Feature {
 const FEATURES: Feature[] = [
   { label: "Events / month",       free: "100k",       pro: "5M",          enterprise: "Unlimited" },
   { label: "Data retention",       free: "7 days",     pro: "90 days",     enterprise: "1 year" },
-  { label: "Team members",         free: "3",          pro: "20",          enterprise: "Unlimited" },
+  { label: "Organisations",        free: "1",          pro: "5",           enterprise: "Unlimited" },
+  { label: "Teams",                 free: "1",          pro: "10",          enterprise: "Unlimited" },
+  { label: "Members per team",     free: "3",          pro: "20",          enterprise: "Unlimited" },
   { label: "Applications",         free: "2",          pro: "10",          enterprise: "Unlimited" },
   { label: "API keys",             free: "2",          pro: "20",          enterprise: "Unlimited" },
   { label: "Real-time streaming",  free: true,         pro: true,          enterprise: true },

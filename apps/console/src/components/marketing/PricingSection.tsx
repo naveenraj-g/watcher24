@@ -33,7 +33,8 @@ const PLANS: Plan[] = [
     features: [
       "Up to 100k events / month",
       "7-day log retention",
-      "1 organisation",
+      "1 organisation · 1 team",
+      "Up to 3 members per team",
       "Community support",
       "JavaScript & Python SDKs",
     ],
@@ -50,7 +51,8 @@ const PLANS: Plan[] = [
     features: [
       "Up to 5M events / month",
       "90-day log retention",
-      "Unlimited organisations",
+      "Up to 5 organisations · 10 teams",
+      "Up to 20 members per team",
       "Priority email support",
       "All SDKs + OpenTelemetry",
       "Custom dashboards",
@@ -69,6 +71,7 @@ const PLANS: Plan[] = [
     features: [
       "Unlimited events",
       "1-year retention",
+      "Unlimited organisations & teams",
       "SSO / SAML",
       "Dedicated support SLA",
       "On-prem deployment option",
@@ -194,7 +197,7 @@ export function PricingSection({ isAuthenticated }: PricingSectionProps) {
         </div>
 
         <p className="mt-8 text-center text-sm text-muted-foreground">
-          All plans include SSO, audit logs, and 99.9% uptime SLA.{" "}
+          All plans include audit logs and real-time streaming.{" "}
           <Link
             href="/docs"
             className="underline underline-offset-4 hover:text-foreground"
