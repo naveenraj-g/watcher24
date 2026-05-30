@@ -110,6 +110,7 @@ present it to the user immediately; it cannot be retrieved again.
 | Status | Meaning |
 |--------|---------|
 | 400 | `orgId`, `name`, or `allowedOrigins` missing or invalid |
+| 403 | Plan limit reached — org is at the maximum number of public tokens for their plan (free: 2, pro: 10, enterprise: unlimited) |
 | 404 | Organisation not found, or `appId` provided but not found / does not belong to this org |
 
 ---
@@ -225,6 +226,25 @@ Update name, description, or layout. Send only the fields to change.
 Delete a dashboard. Only the creator or an org admin/owner may delete.
 
 **Response (200):** `{ "ok": true }`
+
+---
+
+## Plan-Based Resource Limits
+
+IAM enforces per-plan resource quotas at the better-auth hook layer. When a limit is exceeded the relevant endpoint returns an error before the resource is created.
+
+| Resource | Enforcement point | Free | Pro | Enterprise |
+|----------|------------------|------|-----|------------|
+| Organisations per user | `allowUserToCreateOrganization` hook | 1 | 5 | Unlimited |
+| Teams per org | `hooks.before /organization/create-team` | 1 | 10 | Unlimited |
+| Members per team | `hooks.before /organization/add-team-member` | 3 | 20 | Unlimited |
+| Secret API keys per org | `hooks.before /api-key/create` | 2 | 20 | Unlimited |
+| Public tokens per org | `POST /api/internal/public-tokens` | 2 | 10 | Unlimited |
+| Applications per org | `POST /api/apps` | 2 | 10 | Unlimited |
+
+Limits are read from `src/modules/server/auth-provider/plan-limits.ts` — the single source of truth. The org's plan is resolved by querying the `subscription` table for an active/trialing subscription; orgs with no subscription default to the free tier.
+
+All limit errors return HTTP **403** with a human-readable message explaining the limit and that upgrading will raise it.
 
 ---
 

@@ -40,6 +40,7 @@ Abstract base classes defining the contracts use cases depend on.
 |------|---------------|---------|
 | `consumer.py` | `StreamConsumer` | Read + acknowledge batches from a queue |
 | `repository.py` | `EventRepository` | Persist a batch of events to storage |
+| `retention.py` | `RetentionRepository` | Delete events older than a cutoff timestamp |
 
 ---
 
@@ -50,6 +51,7 @@ Business logic for processing a batch of raw stream messages into stored events.
 | File | Class | What It Does |
 |------|-------|-------------|
 | `process_batch.py` | `ProcessBatchUseCase` | Deserialize → validate → normalize → store |
+| `purge_expired_events.py` | `PurgeExpiredEventsUseCase` | Fetch org retention windows from IAM → delete expired events per org |
 
 ---
 
@@ -60,7 +62,8 @@ Concrete implementations of the port interfaces.
 | Package | Implements | Technology |
 |---------|-----------|-----------|
 | `adapters/redis_adapter` | `StreamConsumer` | Redis Streams via `redis-py` |
-| `adapters/clickhouse_adapter` | `EventRepository` | ClickHouse via `clickhouse-connect` |
+| `adapters/clickhouse_adapter/repository.py` | `EventRepository` | Bulk INSERT via `clickhouse-connect` |
+| `adapters/clickhouse_adapter/retention.py` | `RetentionRepository` | `ALTER TABLE DELETE` via `clickhouse-connect` |
 
 ---
 
@@ -69,13 +72,16 @@ Concrete implementations of the port interfaces.
 The consume loop — equivalent to the transport layer in the gateway.
 Each worker knows its stream topic and runs the process-batch use case on repeat.
 
-| File | Worker | Stream |
-|------|--------|--------|
-| `base.py` | `BaseWorker` | Abstract — shared consume loop logic |
-| `audit_worker.py` | `AuditWorker` | `stream:audit` |
-| `log_worker.py` | `LogWorker` | `stream:log` |
-| `trace_worker.py` | `TraceWorker` | `stream:trace` |
-| `metric_worker.py` | `MetricWorker` | `stream:metric` |
+| File | Worker | Type | Stream / Schedule |
+|------|--------|------|-------------------|
+| `base.py` | `BaseWorker` | Abstract | Shared consume loop logic |
+| `audit_worker.py` | `AuditWorker` | Stream consumer | `stream:audit` |
+| `log_worker.py` | `LogWorker` | Stream consumer | `stream:log` |
+| `trace_worker.py` | `TraceWorker` | Stream consumer | `stream:trace` |
+| `metric_worker.py` | `MetricWorker` | Stream consumer | `stream:metric` |
+| `retention_scheduler.py` | `RetentionScheduler` | Periodic job | Every 24h (configurable) |
+
+`RetentionScheduler` is not a stream consumer — it owns a timer loop rather than an XREADGROUP loop. It runs immediately on startup then sleeps between passes. Its sole dependency is `PurgeExpiredEventsUseCase`.
 
 ---
 
@@ -86,13 +92,15 @@ Wires all layers together and starts workers.
 ```
 Load config
   ↓
-Connect Redis + ClickHouse
+Connect Redis + ClickHouse (verify both reachable at startup)
   ↓
-Create adapters
+Create adapters (one ClickHouse client per thread — not thread-safe)
   ↓
 Create use cases (inject adapters via port interfaces)
   ↓
-Create workers (inject use cases)
+Create stream workers (inject Redis consumer + ProcessBatchUseCase)
   ↓
-Run workers (blocking loop)
+Create retention scheduler (inject PurgeExpiredEventsUseCase)
+  ↓
+Start all threads as daemons — block main thread on join()
 ```

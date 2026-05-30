@@ -22,13 +22,21 @@ Python was chosen for the worker layer because:
 
 ## Responsibility
 
-The worker does exactly **four things** per event batch:
+The worker has two distinct jobs:
 
+**1. Stream processing** — runs continuously, one worker thread per event type:
 ```
-1. Consume   — Read a batch of events from Redis Streams (XREADGROUP)
-2. Parse     — Deserialize stream fields back into Event domain objects
-3. Process   — Validate, normalize, and transform events
-4. Store     — Bulk insert into ClickHouse, then ACK the stream
+Consume   — Read a batch of events from Redis Streams (XREADGROUP)
+Parse     — Deserialize stream fields back into Event domain objects
+Process   — Validate, normalize, and transform events
+Store     — Bulk insert into ClickHouse, then ACK the stream
+```
+
+**2. Data retention enforcement** — runs on a nightly schedule:
+```
+Fetch     — Call IAM to get each org's plan and retention window
+Compute   — Calculate the cutoff timestamp per org
+Purge     — Issue ALTER TABLE DELETE in ClickHouse for expired events
 ```
 
 It does **not**:
@@ -55,7 +63,9 @@ ClickHouse
 
 ## Worker Types
 
-Each worker subscribes to one Redis Stream topic and specializes in that event type:
+### Stream workers
+
+Each stream worker subscribes to one Redis Stream topic and specializes in that event type:
 
 | Worker | Stream Topic | ClickHouse Table |
 |--------|-------------|-----------------|
@@ -63,10 +73,18 @@ Each worker subscribes to one Redis Stream topic and specializes in that event t
 | `LogWorker` | `stream:log` | `watcher.events` |
 | `TraceWorker` | `stream:trace` | `watcher.events` |
 | `MetricWorker` | `stream:metric` | `watcher.events` |
-| `SecurityWorker` | `stream:security` | `watcher.events` |
 
-All workers write to the same `watcher.events` table in ClickHouse.
+All stream workers write to the same `watcher.events` table in ClickHouse.
 The `event_type` column differentiates them at query time.
+
+### Retention scheduler
+
+`RetentionScheduler` is a separate periodic job (not a stream consumer). It runs once on startup and then every 24 hours (configurable via `RETENTION_INTERVAL_SECONDS`). On each pass it:
+
+1. Calls `GET /api/internal/orgs/retention` on the IAM service to get each org's plan and retention window
+2. For each org, issues `ALTER TABLE watcher.events DELETE WHERE org_id = ? AND timestamp < cutoff` in ClickHouse
+
+This enforces the plan-based retention limits (free: 7 days / pro: 90 days / enterprise: 365 days) shown in the billing plans UI.
 
 ---
 

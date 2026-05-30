@@ -1,11 +1,11 @@
 ---
 title: Data Retention
-description: How long Watcher keeps your events and how to configure retention per plan.
+description: How long Watcher keeps your events and how retention is enforced per plan.
 ---
 
 # Data Retention
 
-Watcher stores events in ClickHouse with automatic TTL (time-to-live) expiry. Older events are purged on a rolling basis to keep storage costs predictable.
+Watcher enforces per-organisation data retention based on the organisation's active subscription plan. Events older than the retention window are automatically deleted nightly.
 
 ## Retention by plan
 
@@ -13,38 +13,40 @@ Watcher stores events in ClickHouse with automatic TTL (time-to-live) expiry. Ol
 |---|---|
 | Free | 7 days |
 | Pro | 90 days |
-| Enterprise | 1 year (custom on request) |
+| Enterprise | 1 year |
 
-Events older than the retention window are automatically deleted from ClickHouse. There is no manual deletion required.
+## How it works
 
-## How TTL works
+Retention is enforced by the **analytics-python** retention scheduler — a background job that runs once every 24 hours.
 
-ClickHouse's native `TTL` clause runs a background merge job that removes rows older than `now() - retention_period`. This happens automatically — you don't need to schedule any cleanup jobs.
+```
+analytics-python (RetentionScheduler)
+  ↓  GET /api/internal/orgs/retention
+IAM service
+  ↓  [{ orgId, plan, retentionDays }, ...]
+analytics-python
+  ↓  ALTER TABLE watcher.events DELETE
+       WHERE organization_id = ? AND timestamp < cutoff
+ClickHouse
+```
 
-The TTL is applied per-organisation based on the organisation's active plan. When you upgrade from Free to Pro, the TTL on your existing events is extended automatically.
+On each nightly pass, the scheduler:
+1. Fetches every organisation's plan and retention window from IAM
+2. Computes a cutoff timestamp per org (`now - retentionDays`)
+3. Issues a `DELETE` mutation in ClickHouse for events older than the cutoff
+
+The delete is an **async ClickHouse mutation** — rows are removed during the next MergeTree merge cycle (usually within minutes to hours), not instantly.
+
+## When retention takes effect
+
+- A free org that just created their account has a 7-day window. Events older than 7 days are purged on the next nightly pass.
+- When an org upgrades from Free to Pro, the next nightly pass will apply the 90-day window — older events that were previously purged are not restored, but events from the past 90 days will be retained going forward.
+- Downgrading from Pro to Free re-applies the 7-day window on the next pass.
 
 ## Querying near the retention boundary
 
-The console and API never return events outside your retention window, so you don't need to worry about stale data appearing in queries.
+The console and API query ClickHouse directly. If you query for events near the edge of your retention window, some may already have been purged by the time your query runs. Use an explicit `from` timestamp rather than relying on relative time ranges when working near the boundary.
 
-If you need to query data near the boundary (e.g. "events from exactly 90 days ago"), use an explicit `from` timestamp in your API query rather than relying on the default 7-day window.
-
-## Audit log retention
-
-Audit events (`event_type = "audit"`) use a longer TTL regardless of plan:
-
-| Plan | Audit log retention |
-|---|---|
-| Free | 30 days |
-| Pro | 1 year |
-| Enterprise | Indefinite (or custom) |
-
-This is intentional — audit logs are often needed for compliance and should outlive your operational log retention.
-
-## Exporting before expiry
-
-To preserve data beyond your plan's retention window, use the **Export** feature in the console (or the `/api/events/export` endpoint) to download a CSV or Parquet snapshot before the TTL fires.
-
-<Callout type="tip">
-Pro tip: set up a scheduled export for long-term compliance archiving to S3 or GCS before the retention window expires.
+<Callout type="note">
+The nightly scheduler runs once every 24 hours. Events are not deleted in real time — there may be up to 24 hours of lag between an event aging past the retention window and it being removed from ClickHouse.
 </Callout>
