@@ -197,7 +197,7 @@ export function AIEventsExplorer({ orgId, appId }: AIEventsExplorerProps) {
         if (!tid) return <span className="text-xs text-muted-foreground">—</span>;
         return (
           <Link
-            href={`/traces/${tid}`}
+            href={`/ai/traces/${tid}`}
             className="flex items-center gap-1 text-xs text-primary hover:underline"
             onClick={(e) => e.stopPropagation()}
           >
@@ -308,6 +308,7 @@ export function AIEventsExplorer({ orgId, appId }: AIEventsExplorerProps) {
         event={selectedEvent}
         open={selectedEvent !== null}
         onOpenChange={(open) => { if (!open) setSelectedEvent(null); }}
+        traceBasePath="/ai/traces"
       />
     </>
   );

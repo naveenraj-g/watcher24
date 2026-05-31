@@ -116,12 +116,17 @@ interface EventDetailSheetProps {
   event: EventRow | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  // Base path for the "View full trace" link. Defaults to /traces so callers
+  // in the general events explorer keep the existing behaviour. The AI events
+  // explorer passes /ai/traces to stay within the AI observability flow.
+  traceBasePath?: string;
 }
 
 export function EventDetailSheet({
   event,
   open,
   onOpenChange,
+  traceBasePath = "/traces",
 }: EventDetailSheetProps) {
   const router = useRouter();
 
@@ -198,7 +203,7 @@ export function EventDetailSheet({
                       className="h-8 text-xs gap-2 w-full justify-between"
                       onClick={() => {
                         onOpenChange(false);
-                        router.push(`/traces/${event.trace_id}`);
+                        router.push(`${traceBasePath}/${event.trace_id}`);
                       }}
                     >
                       View full trace
