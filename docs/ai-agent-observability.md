@@ -107,7 +107,7 @@ All AI events use `event_type: "ai"` and carry a structured `payload`. The paylo
 | `agent_step` | One step in an agent reasoning loop | `step_number`, `thought`, `action`, `action_input`, `observation` |
 | `workflow_start` | Agent workflow begins | `workflow_name`, `workflow_version`, `trigger`, `input_summary` |
 | `workflow_end` | Agent workflow completes | `workflow_name`, `duration_ms`, `total_tokens`, `total_cost_usd`, `steps_taken`, `outcome` |
-| `retrieval` | RAG retrieval — vector, BM25, wiki, or hybrid | `query_summary`, `source`, `retrieval_method`, `chunks_retrieved`, `top_score`, `latency_ms`, `empty_result` |
+| `retrieval` | RAG retrieval — vector, BM25, wiki, or hybrid | `query_summary`, `source`, `retrieval_method`, `chunks_retrieved`, `top_score`, `retrieved_tokens`, `latency_ms`, `empty_result` |
 | `memory_read` | Agent reads from memory store | `memory_type`, `query_summary`, `items_retrieved`, `latency_ms` |
 | `memory_write` | Agent writes to memory store | `memory_type`, `content_summary`, `latency_ms` |
 | `safety_check` | Content moderation / guardrail | `guardrail`, `input_flagged`, `output_flagged`, `action_taken` |
@@ -487,6 +487,27 @@ Watcher24 tracks all retrieval strategies under the same `retrieval` event kind.
 | `sql` | Structured database query used as a retrieval step |
 | `api` | External API call that fetches grounding context (e.g. search engine, docs API) |
 
+**Example — vector retrieval (Pinecone / pgvector / Weaviate):**
+
+```python
+watcher.event("ai", "info", "retrieval.completed",
+    trace_id=trace_id,
+    payload={
+        "kind":              "retrieval",
+        "retrieval_method":  "vector",
+        "source":            "pinecone/product-docs",   # index name or store identifier
+        "query_summary":     "refund policy Q3",        # truncated query for privacy
+        "chunks_retrieved":  5,
+        "retrieved_tokens":  1240,                      # token count of returned chunks
+        "top_score":         0.91,                      # cosine similarity of best match (0.0–1.0)
+        "empty_result":      False,
+        "latency_ms":        62,
+    }
+)
+```
+
+For hybrid (vector + BM25 with re-ranking), use `retrieval_method: "hybrid"` and set `top_score` to the re-ranked top score. The field is still meaningful because re-ranking produces a relevance score.
+
 **Example — vectorless wiki retrieval:**
 
 ```python
@@ -498,14 +519,17 @@ watcher.event("ai", "info", "retrieval.completed",
         "source":            "internal-wiki",
         "query_summary":     "refund policy Q3",
         "chunks_retrieved":  3,
-        "top_score":         None,             # not applicable for non-vector methods
+        "retrieved_tokens":  840,              # token count of returned chunks
+        "top_score":         None,             # not applicable — no similarity scoring
         "empty_result":      False,
         "latency_ms":        45,
     }
 )
 ```
 
-`top_score` is only meaningful for vector and hybrid methods — it should be `null` / omitted for BM25, wiki, SQL, and API retrievals. The console suppresses the similarity score column for non-vector rows automatically.
+`top_score` is only meaningful for `vector` and `hybrid` methods — omit or set to `null` for `bm25`, `wiki`, `sql`, and `api` retrievals. The console suppresses the similarity score column for non-vector rows automatically.
+
+`retrieved_tokens` should always be included when known — it is the total token count of all retrieved chunks, used to calculate context window usage (`retrieved_tokens / model_context_limit`).
 
 **Dashboard widgets (all retrieval methods):**
 - **Retrieval quality**: `top_score` distribution over time (vector/hybrid only)
@@ -565,6 +589,46 @@ Extend the existing analytics-python worker to detect:
 - **Error rate increase**: `tool_call.failed` rate rises above baseline
 - **Token runaway**: single workflow exceeds token budget threshold
 - **Prompt injection attempts**: safety_check flagging rate spikes
+
+---
+
+## Data Storage Architecture
+
+Different parts of the AI observability feature write to different stores. Choosing the wrong store causes either poor query performance (raw files in Postgres) or unmaintainable schema fragmentation (structured rows in S3).
+
+### Storage decision table
+
+| Data | Store | Format | Reason |
+|------|-------|--------|--------|
+| All AI events (llm_call, tool_call, retrieval, …) | **ClickHouse** `watcher.events` | Structured columns + `payload JSONB` | Append-only, time-series queries, massive scale |
+| Prompt template content and version history | **PostgreSQL** `prompt_templates` | `content TEXT`, `variables JSONB` | Needs versioning, CRUD, relational joins; content is small (<100KB per version) |
+| Eval dataset item inputs and expected outputs | **PostgreSQL** `eval_dataset_items` | `input JSONB`, `expected JSONB` | Must be queryable — filter by source, join to dataset, paginate |
+| Eval run results | **ClickHouse** `watcher.events` (as `eval_run` AI events) | AI event payload | Same pipeline as all other AI events; no new table needed |
+| Human feedback labels | **ClickHouse** `watcher.events` (as `human_feedback` AI events) | AI event payload | Same pipeline; feedback correlates to llm_call spans by trace_id/span_id |
+| Bulk eval dataset file imports (CSV/JSON uploads) | **S3-compatible store** (MinIO / AWS S3) | Raw file | Files can be megabytes; blob storage is cheaper than DB rows; a background worker processes the file and inserts rows into `eval_dataset_items` |
+| Agent metadata (identity, capabilities) | **PostgreSQL** (IAM-owned via Prisma) | IAM schema | Never touch directly — read via IAM internal API (Rule 9) |
+
+### When S3 is needed
+
+S3 (or MinIO for self-hosted) is only needed if you add **bulk eval dataset import**: a user uploads a CSV or JSON file of test cases rather than adding items one-by-one.
+
+The flow is:
+```
+User uploads file
+  → console uploads to S3 (pre-signed PUT URL via /api/ai/datasets/upload-url)
+  → console inserts a pending import record in PostgreSQL
+  → analytics-python ai_import_worker picks up the record
+  → worker streams file from S3, parses rows, inserts into eval_dataset_items
+  → worker marks import as complete
+```
+
+For Phase 2 (manual item entry + automated production sampling), S3 is **not needed** — all writes go directly to PostgreSQL.
+
+### What never goes in S3
+
+- AI events → always ClickHouse
+- Prompt content → always PostgreSQL TEXT (grep-able, diffable, version-comparable)
+- Eval item inputs/outputs → always PostgreSQL JSONB (must be queryable)
 
 ---
 
@@ -651,23 +715,26 @@ ORDER BY hour;
 
 ## Implementation Roadmap
 
-| Phase | What | Effort | Impact |
+| Phase | What | Effort | Status |
 |---|---|---|---|
-| **Now** | Document AI event payload schema; add SDK code examples | 1 day | Enables developers to instrument today |
-| **Now** | Add "AI Events" tab to console explorer (filter on `event_type = ai`) | 1–2 days | Immediate product value |
-| **Now** | Add token/cost dashboard widgets to widget registry | 2–3 days | Visible to existing dashboard users |
-| **Short** | Agent workflow waterfall in trace explorer | 3–5 days | Major UI differentiator |
-| **Short** | Prompt version tracking (new DB table + UI) | 5–7 days | Stickiness feature |
-| **Short** | AI cost alerting rule type | 3–5 days | Direct revenue justification |
-| **Medium** | Safety/guardrail event dashboard | 3–5 days | Compliance selling point |
-| **Medium** | AgentAuth → observability linkage (per-agent event filtering) | 5–7 days | Enterprise differentiator |
-| **Medium** | RAG pipeline observability widgets | 3–5 days | AI infrastructure market |
-| **Medium** | Eval dataset table + sampling from production calls | 3–5 days | Continuous eval set without manual curation |
-| **Medium** | Human feedback events + labelling UI | 3–5 days | Ground-truth signal for quality scoring |
-| **Long** | Offline eval run API + regression detection | 1–2 weeks | Catch prompt regressions before shipping |
-| **Long** | Hallucination/quality scoring integration | 2–3 weeks | Advanced AI quality management |
-| **Long** | Anomaly detection on AI events | 2–3 weeks | Autonomous cost protection |
-| **Long** | Multi-agent workflow visualization | 3–4 weeks | Top-tier AI platform feature |
+| **Phase 1** | Document AI event payload schema; add SDK code examples | 1 day | ✅ Done |
+| **Phase 1** | `ai()` typed method added to all SDKs (JS, Python, Go, Rust) | 1 day | ✅ Done |
+| **Phase 1** | `AIWorker` consuming `stream:ai` → ClickHouse | 0.5 days | ✅ Done |
+| **Phase 1** | "AI Events" tab in console (`/ai` page + `AIEventsExplorer`) | 1–2 days | ✅ Done |
+| **Phase 1** | Token/cost/latency dashboard widgets (4 widget types + stats API) | 2–3 days | ✅ Done |
+| **Phase 1** | Agent workflow waterfall in trace explorer (TraceSpanTree AI styling) | 1 day | ✅ Done |
+| **Phase 1** | Console MDX docs for AI observability | 0.5 days | ✅ Done |
+| **Phase 2** | Prompt version tracking (new DB table + UI) | 5–7 days | Pending |
+| **Phase 2** | AI cost alerting rule type | 3–5 days | Pending |
+| **Phase 2** | Safety/guardrail event dashboard | 3–5 days | Pending |
+| **Phase 2** | Hallucination/quality scoring display | 2–3 days | Pending |
+| **Phase 2** | Eval dataset table + sampling from production calls + regression detection | 5–7 days | Pending |
+| **Phase 2** | Human feedback events + labelling UI | 3–5 days | Pending |
+| **Phase 2** | RAG pipeline observability widgets (method mix, empty rate, context usage) | 3–5 days | Pending |
+| **Phase 3** | AgentAuth → observability linkage (per-agent event filtering) | 5–7 days | Pending |
+| **Phase 3** | AI audit trail UI + CSV/PDF export | 3–5 days | Pending |
+| **Phase 3** | Multi-agent workflow visualization | 3–4 weeks | Pending |
+| **Phase 3** | Anomaly detection on AI events | 2–3 weeks | Pending |
 
 ---
 
@@ -675,23 +742,32 @@ ORDER BY hour;
 
 ### Already exists — use today
 - `EventTypeAI = "ai"` in gateway and all SDKs
+- `ai()` typed convenience method in all SDKs (JS, Python, Go, Rust)
 - `POST /v1/events` ingestion with payload storage
 - `trace_id` / `span_id` / `parent_span_id` in event schema
+- `AIWorker` in analytics-python consuming `stream:ai` → ClickHouse
+- Console: `/ai` page with `AIEventsExplorer` (kind, model, severity filters, pagination)
+- Console: `/api/events/ai` API route with AI-specific columns (kind, model, tokens, cost, latency)
+- Console: `TraceSpanTree` AI-aware span styling (kind badges, token/cost summary strip)
+- Console: 4 AI dashboard widget types (token usage, cost by model, latency percentiles, workflow cost)
+- Console: `/api/events/ai/stats` route (tokens, cost, latency, workflow-cost metrics)
+- Console: AI observability MDX docs (`/docs/ai/overview`, `/docs/ai/events`)
 - Trace explorer in console
 - AgentAuth in IAM (agent identity, capability grants, approval workflows)
-- Custom dashboards (add AI widgets)
+- Custom dashboards
 - ClickHouse payload column with JSON extraction support
 
-### Needs to be built
-- AI event payload schema documentation (this document, plus SDK examples)
-- Console: "AI Events" explorer tab
-- Console: workflow waterfall view for AI traces
-- Dashboard widgets: token usage, cost, latency by model
-- Prompt template table and UI
-- AI cost alert rule type
-- Safety check aggregation dashboard
-- AgentAuth → event filtering linkage
-- Eval dataset + dataset items tables
-- Automated production sampling (sample_rate on prompt templates)
-- Human feedback event kind + labelling UI
-- Offline eval run API and regression detection dashboard
+### Needs to be built — Phase 2
+- Prompt template table (PostgreSQL), CRUD API, and version comparison UI
+- AI cost alert rule type (`ai_cost_threshold` worker + rule config)
+- Safety check aggregation dashboard (`/ai/safety` tab + `/api/events/ai/safety` route)
+- Quality scoring display (eval_result event charts, per-prompt version trends)
+- Eval dataset + dataset items tables; automated production sampling; regression detection worker
+- Human feedback UI button in Event Detail Sheet + `/api/ai/feedback` route + feedback dashboard widget
+- RAG pipeline widgets: method mix, empty retrieval rate, source attribution, context window usage, top-score distribution
+
+### Needs to be built — Phase 3
+- AgentAuth → event filtering linkage (per-agent filtering in AI Events explorer + agent detail page)
+- AI audit trail UI + CSV/PDF export
+- Multi-agent workflow visualization (agent identity badges on TraceSpanTree)
+- Anomaly detection worker (latency spikes, cost explosions, token runaway, prompt injection rate)
