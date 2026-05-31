@@ -9,6 +9,7 @@ import { OrgSwitcher } from "@/components/layout/OrgSwitcher";
 import { AppSwitcher } from "@/components/layout/AppSwitcher";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -48,7 +49,8 @@ export function Header({ user, orgId, activeAppId }: HeaderProps) {
 
   return (
     <header className="flex h-14 items-center justify-between border-b bg-background px-4">
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2">
+        <SidebarTrigger className="h-8 w-8" />
         {orgId && <OrgSwitcher activeOrgId={orgId} />}
         <AppSwitcher activeAppId={activeAppId} />
       </div>
