@@ -17,6 +17,7 @@ func NewServer(
 	internalSecret string,
 	notifyHandler *handlers.NotifyHandler,
 	inAppHandler *handlers.InAppHandler,
+	streamHandler *handlers.StreamHandler,
 ) *fiber.App {
 	app := fiber.New(fiber.Config{
 		DisableStartupMessage: true,
@@ -44,6 +45,8 @@ func NewServer(
 	internal.Get("/notifications", inAppHandler.HandleList)
 	internal.Patch("/notifications/:id/read", inAppHandler.HandleMarkRead)
 	internal.Patch("/notifications/read-all", inAppHandler.HandleMarkAllRead)
+	// SSE endpoint — streams real-time notification signals to the console.
+	internal.Get("/notifications/events", streamHandler.HandleStream)
 
 	return app
 }

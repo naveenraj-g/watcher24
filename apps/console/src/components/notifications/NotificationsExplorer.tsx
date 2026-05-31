@@ -2,7 +2,8 @@
 // NotificationsExplorer — full paginated notification list for /notifications.
 // Shows read/unread state, severity badge, delivery channel, and timestamp.
 // Provides "Mark all read", per-row mark-read on click, and a "Send test" button.
-import { useRef, useState } from "react";
+// Uses the same SSE stream as NotificationBell for real-time updates.
+import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bell, CheckCheck, FlaskConical } from "lucide-react";
 import { toast } from "sonner";
@@ -54,6 +55,16 @@ export function NotificationsExplorer({ orgId }: NotificationsExplorerProps) {
   const queryClient = useQueryClient();
   const testIndexRef = useRef(0);
   const [sending, setSending] = useState(false);
+
+  // Real-time updates via SSE — invalidates query whenever a new notification
+  // signal arrives, so the list refreshes without manual reload.
+  useEffect(() => {
+    const es = new EventSource("/api/notifications/stream");
+    es.onmessage = () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
+    };
+    return () => es.close();
+  }, [queryClient]);
 
   const { data, isFetching } = useQuery<NotificationsResponse>({
     queryKey: ["/api/notifications", orgId],

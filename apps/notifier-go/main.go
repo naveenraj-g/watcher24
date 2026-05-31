@@ -54,6 +54,13 @@ func main() {
 	defer streamConsumer.Close() //nolint:errcheck
 	log.Println("notifier: connected to Redis (stream:notify consumer)")
 
+	pubSubAdapter, err := redisadapter.NewPubSubAdapter(ctx, cfg.RedisURL)
+	if err != nil {
+		log.Fatalf("notifier: failed to connect to Redis (pub/sub): %v", err)
+	}
+	defer pubSubAdapter.Close() //nolint:errcheck
+	log.Println("notifier: connected to Redis (pub/sub)")
+
 	// ── 3. Create adapters ────────────────────────────────────────────────────
 	deliveryStore := pgPool.DeliveryStore()
 	inAppStore    := pgPool.InAppStore()
@@ -77,19 +84,20 @@ func main() {
 	senderList := buildSenderList(enabledChannels, emailSender)
 
 	// ── 4. Create use cases ───────────────────────────────────────────────────
-	deliverUC  := usecases.NewDeliverNotificationUseCase(senderList, deliveryStore, inAppStore, channelCfg, dedupStore)
+	deliverUC  := usecases.NewDeliverNotificationUseCase(senderList, deliveryStore, inAppStore, channelCfg, dedupStore, pubSubAdapter)
 	markReadUC := usecases.NewMarkReadUseCase(inAppStore)
 
 	// ── 5. Create handlers ────────────────────────────────────────────────────
 	notifyHandler := handlers.NewNotifyHandler(deliverUC)
 	inAppHandler  := handlers.NewInAppHandler(markReadUC, inAppStore)
+	streamHandler := handlers.NewStreamHandler(pubSubAdapter)
 
 	// ── 6. Start stream:notify consumer goroutine ─────────────────────────────
 	go runStreamConsumer(ctx, streamConsumer, deliverUC)
 	log.Println("notifier: stream:notify consumer started")
 
 	// ── 7. Start HTTP server with graceful shutdown ───────────────────────────
-	app := transport.NewServer(cfg.InternalSecret, notifyHandler, inAppHandler)
+	app := transport.NewServer(cfg.InternalSecret, notifyHandler, inAppHandler, streamHandler)
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)

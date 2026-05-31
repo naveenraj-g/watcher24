@@ -28,17 +28,21 @@ type DeliverNotificationUseCase struct {
 	inApp        ports.InAppStore
 	channelCfg   ports.ChannelConfigStore
 	dedup        ports.DedupStore
+	pubsub       ports.NotificationPubSub
 }
 
 // NewDeliverNotificationUseCase wires the use case with the required adapters.
 // senderList is the slice of all registered channel senders — the use case
 // indexes them by channel for O(1) dispatch.
+// pubsub is used to emit a real-time signal after each in-app write so that
+// connected SSE clients can invalidate their notification cache immediately.
 func NewDeliverNotificationUseCase(
 	senderList []ports.Sender,
 	deliveries ports.DeliveryStore,
 	inApp ports.InAppStore,
 	channelCfg ports.ChannelConfigStore,
 	dedup ports.DedupStore,
+	pubsub ports.NotificationPubSub,
 ) *DeliverNotificationUseCase {
 	senderMap := make(map[domain.Channel]ports.Sender, len(senderList))
 	for _, s := range senderList {
@@ -50,6 +54,7 @@ func NewDeliverNotificationUseCase(
 		inApp:      inApp,
 		channelCfg: channelCfg,
 		dedup:      dedup,
+		pubsub:     pubsub,
 	}
 }
 
@@ -101,7 +106,9 @@ func (uc *DeliverNotificationUseCase) Execute(ctx context.Context, req *domain.N
 	return nil
 }
 
-// deliverInApp writes an in_app_notifications row and records the delivery.
+// deliverInApp writes an in_app_notifications row, records the delivery, and
+// publishes a lightweight real-time signal so connected SSE clients can
+// invalidate their notification cache without waiting for the next poll.
 func (uc *DeliverNotificationUseCase) deliverInApp(ctx context.Context, req *domain.NotificationRequest, msg *domain.RenderedMessage) {
 	deliveryID, err := uc.deliveries.Create(ctx, req.OrgID, req.Template, domain.ChannelInApp)
 	if err != nil {
@@ -124,6 +131,16 @@ func (uc *DeliverNotificationUseCase) deliverInApp(ctx context.Context, req *dom
 	}
 
 	_ = uc.deliveries.MarkSent(ctx, deliveryID)
+
+	// Publish a real-time signal so SSE subscribers invalidate immediately.
+	// Non-fatal — a publish failure only degrades to polling, never loses data.
+	if uc.pubsub != nil {
+		go func() {
+			if err := uc.pubsub.Publish(context.Background(), req.OrgID); err != nil {
+				log.Printf("deliver: pubsub publish (non-fatal): %v", err)
+			}
+		}()
+	}
 }
 
 // deliverAsync sends to an external channel in a goroutine with simple retry.

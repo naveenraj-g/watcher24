@@ -67,6 +67,32 @@ Mark all notifications for the org as read.
 
 ---
 
+## GET /api/internal/notifications/events
+
+Server-Sent Events stream for real-time notification signals.
+
+After each in-app notification is written, a lightweight signal is pushed here.
+Clients should invalidate their notification list cache on receiving a message —
+the event carries no payload, only the signal that something changed.
+
+**Query params:** `org_id` (required)
+
+**Response:** `text/event-stream` (long-lived connection)
+
+```
+data: {"type":"notification"}
+
+: heartbeat
+
+data: {"type":"notification"}
+```
+
+Heartbeat comments are sent every 25 seconds to keep proxies from closing the
+idle connection. The console proxies this endpoint via `GET /api/notifications/stream`
+so the X-Internal-Secret header never reaches the browser.
+
+---
+
 ## GET /health
 
 Public health check. Returns `{"ok": true}`.

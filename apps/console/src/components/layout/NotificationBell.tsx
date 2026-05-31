@@ -1,9 +1,10 @@
 "use client";
 // NotificationBell — header bell icon with unread badge and notification dropdown.
-// Polls /api/notifications every 30 seconds. Clicking the bell opens a dropdown
-// showing the 20 most recent in-app notifications with severity indicators,
-// read/unread state, and a "Mark all read" action.
-import { useState } from "react";
+// Opens an SSE connection to /api/notifications/stream for real-time delivery;
+// falls back to 30-second polling when the notifier is not running.
+// Clicking the bell opens a dropdown showing the 20 most recent in-app
+// notifications with severity indicators, read/unread state, and "Mark all read".
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bell } from "lucide-react";
@@ -101,6 +102,24 @@ function NotificationItem({
 export function NotificationBell() {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
+
+  // Open an SSE connection to receive real-time notification signals.
+  // When a signal arrives the query cache is invalidated so the bell updates
+  // immediately without waiting for the 30-second poll interval.
+  // EventSource reconnects automatically on failure, so no manual retry needed.
+  useEffect(() => {
+    const es = new EventSource("/api/notifications/stream");
+
+    es.onmessage = () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
+    };
+
+    // onerror is intentionally left as the default — EventSource retries automatically.
+
+    return () => {
+      es.close();
+    };
+  }, [queryClient]);
 
   const { data } = useQuery<NotificationsResponse>({
     queryKey: ["/api/notifications"],
