@@ -1,9 +1,11 @@
 "use client";
 // NotificationsExplorer — full paginated notification list for /notifications.
 // Shows read/unread state, severity badge, delivery channel, and timestamp.
-// Provides "Mark all read" and per-row mark-read on click.
+// Provides "Mark all read", per-row mark-read on click, and a "Send test" button.
+import { useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Bell, CheckCheck } from "lucide-react";
+import { Bell, CheckCheck, FlaskConical } from "lucide-react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -50,6 +52,8 @@ interface NotificationsExplorerProps {
 
 export function NotificationsExplorer({ orgId }: NotificationsExplorerProps) {
   const queryClient = useQueryClient();
+  const testIndexRef = useRef(0);
+  const [sending, setSending] = useState(false);
 
   const { data, isFetching } = useQuery<NotificationsResponse>({
     queryKey: ["/api/notifications", orgId],
@@ -74,19 +78,57 @@ export function NotificationsExplorer({ orgId }: NotificationsExplorerProps) {
     queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
   }
 
+  async function sendTest() {
+    setSending(true);
+    try {
+      const res = await fetch("/api/notifications/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ index: testIndexRef.current }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        toast.error(json.error ?? "Failed to send test notification");
+      } else {
+        testIndexRef.current += 1;
+        toast.success("Test notification sent");
+        // Refetch after a short delay so the DB write has landed.
+        setTimeout(() => {
+          queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
+        }, 400);
+      }
+    } catch {
+      toast.error("Could not reach the notifier — run `just notifier-dev`");
+    } finally {
+      setSending(false);
+    }
+  }
+
   return (
     <div className="space-y-4">
       {/* Toolbar */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <p className="text-sm text-muted-foreground">
           {isFetching ? "Refreshing…" : `${unreadCount} unread`}
         </p>
-        {unreadCount > 0 && (
-          <Button variant="outline" size="sm" onClick={markAllRead} className="h-8 gap-2">
-            <CheckCheck className="h-3.5 w-3.5" />
-            Mark all read
+        <div className="flex items-center gap-2">
+          {unreadCount > 0 && (
+            <Button variant="outline" size="sm" onClick={markAllRead} className="h-8 gap-2">
+              <CheckCheck className="h-3.5 w-3.5" />
+              Mark all read
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={sendTest}
+            disabled={sending}
+            className="h-8 gap-2"
+          >
+            <FlaskConical className="h-3.5 w-3.5" />
+            {sending ? "Sending…" : "Send test"}
           </Button>
-        )}
+        </div>
       </div>
 
       {/* List */}
