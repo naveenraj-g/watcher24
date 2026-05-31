@@ -123,6 +123,20 @@ console-build:
 console-install:
     cd apps/console && pnpm install
 
+# ── Notifier (Go) ────────────────────────────────────────────────────────────
+
+# Run the notifier service
+notifier-dev:
+    just -f apps/notifier-go/justfile dev
+
+# Build the notifier binary
+notifier-build:
+    just -f apps/notifier-go/justfile build
+
+# Test the notifier
+notifier-test:
+    just -f apps/notifier-go/justfile test
+
 # ── Realtime (Go) ────────────────────────────────────────────────────────────
 
 # Run the realtime service
