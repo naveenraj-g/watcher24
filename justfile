@@ -25,18 +25,34 @@ logs:
 # Note: docker-entrypoint-initdb.d only fires on a fresh volume (first-ever start).
 # Use these recipes to apply migrations against an already-running stack.
 
-# Apply all Postgres migrations in order
+# Apply all Postgres migrations in order against the watcher24 application database.
+# Picks up every *.sql file in infrastructure/postgres/migrations/ sorted numerically.
+# IAM migrations are managed separately by Prisma inside apps/iam — never run those here.
 migrate-pg:
-    docker exec -e PGPASSWORD=watcher_secret -i watcher_postgres psql -U watcher -d watcher < infrastructure/postgres/migrations/001_init.sql
-    docker exec -e PGPASSWORD=watcher_secret -i watcher_postgres psql -U watcher -d watcher < infrastructure/postgres/migrations/002_app_api_key_scope.sql
+    #!/usr/bin/env bash
+    set -euo pipefail
+    files=$(ls -1 infrastructure/postgres/migrations/*.sql 2>/dev/null | sort -V)
+    if [ -z "$files" ]; then echo "No Postgres migrations found."; exit 0; fi
+    for f in $files; do
+        echo "→ Applying $f"
+        docker exec -e PGPASSWORD=watcher_secret -i watcher_postgres psql -U watcher -d watcher24 < "$f"
+    done
+    echo "✓ Postgres migrations complete"
 
-# Apply all ClickHouse migrations in order
+# Apply all ClickHouse migrations in order.
+# Picks up every *.sql file in infrastructure/clickhouse/migrations/ sorted numerically.
 migrate-ch:
-    docker exec -i watcher_clickhouse clickhouse-client --user watcher --password watcher_secret --multiquery < infrastructure/clickhouse/migrations/001_init.sql
-    docker exec -i watcher_clickhouse clickhouse-client --user watcher --password watcher_secret --multiquery < infrastructure/clickhouse/migrations/002_add_source.sql
-    docker exec -i watcher_clickhouse clickhouse-client --user watcher --password watcher_secret --multiquery < infrastructure/clickhouse/migrations/003_add_service_name.sql
+    #!/usr/bin/env bash
+    set -euo pipefail
+    files=$(ls -1 infrastructure/clickhouse/migrations/*.sql 2>/dev/null | sort -V)
+    if [ -z "$files" ]; then echo "No ClickHouse migrations found."; exit 0; fi
+    for f in $files; do
+        echo "→ Applying $f"
+        docker exec -i watcher_clickhouse clickhouse-client --user watcher --password watcher_secret --multiquery < "$f"
+    done
+    echo "✓ ClickHouse migrations complete"
 
-# Apply all migrations (Postgres + ClickHouse)
+# Apply all migrations (Postgres watcher24 DB + ClickHouse)
 migrate:
     just migrate-pg
     just migrate-ch

@@ -313,7 +313,7 @@ Add the AI docs section to the docs nav config (wherever `docs-nav.ts` or equiva
 
 #### 2.1.1 — Database table
 
-**File:** create a new migration in `infrastructure/postgres/migrations/` (non-IAM table — this is console-owned data, not IAM identity data per Rule 9).
+**File:** `infrastructure/postgres/migrations/005_prompt_templates.sql` — targets the `watcher24` database (not IAM). Apply with `just migrate-pg`.
 
 ```sql
 -- infrastructure/postgres/migrations/005_prompt_templates.sql
@@ -466,7 +466,7 @@ Add a "Quality" section to the AI prompts detail view (when viewing a specific p
 
 #### 2.5.1 — Database tables
 
-Add to the postgres migration file (or a new migration `006_eval_datasets.sql`):
+**File:** `infrastructure/postgres/migrations/006_eval_datasets.sql` — targets the `watcher24` database. Apply with `just migrate-pg`.
 
 ```sql
 CREATE TABLE eval_datasets (
@@ -778,24 +778,31 @@ Phase 3 (2–3 weeks)
 
 ## Data Storage Architecture
 
+### Two databases
+
+| Database | Managed by | Used for |
+|----------|-----------|---------|
+| **IAM DB** | Prisma inside `apps/iam` | Identity tables: `user`, `session`, `apikey`, `organization`, `member`, `subscription` — never touch with raw SQL |
+| **`watcher24` DB** | Raw SQL migrations in `infrastructure/postgres/migrations/` applied via `just migrate-pg` | All non-IAM feature tables: `prompt_templates`, `eval_datasets`, `eval_dataset_items`, `applications`, `notification_channels`, `alert_rules`, etc. |
+
 ### Storage decision table
 
-| Data | Store | Location | Notes |
-|------|-------|----------|-------|
+| Data | Store | Database / Location | Notes |
+|------|-------|---------------------|-------|
 | All AI events (llm_call, tool_call, retrieval, eval_run, human_feedback, …) | ClickHouse | `watcher.events` | Same table as all other event types; `payload` JSONB holds AI-specific fields |
-| Prompt template content and version history | PostgreSQL | `prompt_templates` migration | `content TEXT`, `variables JSONB`; small enough for DB; needs versioning + CRUD |
-| Eval dataset items (individual inputs/expected outputs) | PostgreSQL | `eval_dataset_items` migration | Must be queryable — filter by source, paginate, join to dataset |
+| Prompt template content and version history | PostgreSQL | `watcher24` DB — `infrastructure/postgres/migrations/` | `content TEXT`, `variables JSONB`; small enough for DB; needs versioning + CRUD |
+| Eval dataset items (individual inputs/expected outputs) | PostgreSQL | `watcher24` DB — `infrastructure/postgres/migrations/` | Must be queryable — filter by source, paginate, join to dataset |
 | Eval run results | ClickHouse | `watcher.events` (as `eval_run` AI events) | Same pipeline; no new table |
 | Human feedback labels | ClickHouse | `watcher.events` (as `human_feedback` AI events) | Correlates to llm_call spans via `trace_id` + `span_id` |
 | Bulk eval dataset imports (CSV/JSON files) | S3-compatible | MinIO (self-hosted) or AWS S3 | Only needed if bulk file upload is added (Phase 2 scope does NOT include this) |
-| Agent metadata | PostgreSQL (IAM Prisma) | IAM database | Never access directly — read via IAM internal API (Rule 9) |
+| Agent metadata | PostgreSQL (IAM Prisma) | IAM DB — never touch directly | Read via IAM internal API (Rule 9) |
 
 ### Phase 2 storage — no S3 needed
 
-Everything in Phase 2 writes to PostgreSQL or ClickHouse directly:
-- Prompt templates → PostgreSQL `TEXT` (CRUD, small payloads)
-- Eval dataset items added manually → PostgreSQL `JSONB` (one INSERT per item)
-- Eval dataset items from production sampling (`ai_sampler_worker`) → PostgreSQL `JSONB` (worker inserts directly)
+Everything in Phase 2 writes to the `watcher24` PostgreSQL database or ClickHouse directly:
+- Prompt templates → `watcher24` DB, `TEXT` column (CRUD, small payloads)
+- Eval dataset items added manually → `watcher24` DB, `JSONB` column (one INSERT per item)
+- Eval dataset items from production sampling (`ai_sampler_worker`) → `watcher24` DB, `JSONB` (worker inserts directly)
 - All eval_run, human_feedback events → ClickHouse via the standard AI event pipeline
 
 ### When S3 becomes needed (Phase 3 / future)
@@ -806,7 +813,7 @@ If you add **bulk eval dataset import** (user uploads a CSV or JSON file of test
 User uploads file
   → console issues pre-signed S3 PUT URL via /api/ai/datasets/upload-url
   → file lands in S3
-  → console inserts a pending import record in PostgreSQL
+  → console inserts a pending import record in watcher24 DB
   → ai_import_worker streams file from S3, parses rows, bulk-inserts into eval_dataset_items
   → worker marks import complete
 ```

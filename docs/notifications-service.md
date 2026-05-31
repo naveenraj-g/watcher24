@@ -186,7 +186,7 @@ Two layers:
 
 ### PostgreSQL migrations
 
-These tables are **not IAM-owned** — they go in `infrastructure/postgres/migrations/` as raw SQL (per Rule 9).
+These tables are **not IAM-owned** — they go in the `watcher24` database via `infrastructure/postgres/migrations/` as raw SQL. Apply with `just migrate-pg`.
 
 ```sql
 -- infrastructure/postgres/migrations/006_notifications.sql

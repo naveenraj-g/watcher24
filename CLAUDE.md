@@ -231,9 +231,16 @@ npm app recipes in the root `justfile` delegate with `cd <app> && pnpm <script>`
 
 ---
 
-### 9. IAM Is the Source of Truth for Identity Data (mandatory)
+### 9. Two Separate PostgreSQL Databases (mandatory)
 
-The IAM app (`apps/iam`) owns the PostgreSQL database schema for all identity-related tables: `user`, `session`, `apikey`, `organization`, `member`, `subscription`, etc. These tables are managed by **better-auth + Prisma** inside IAM — Prisma is the migration authority.
+Watcher24 runs **two separate PostgreSQL databases**:
+
+| Database | Who owns it | How migrations are managed |
+|----------|------------|---------------------------|
+| **IAM DB** | `apps/iam` exclusively | Prisma (`prisma migrate dev` inside `apps/iam`) |
+| **`watcher24` DB** | All other services (console, gateway, analytics-python) | Raw SQL files in `infrastructure/postgres/migrations/`, applied via `just migrate-pg` |
+
+**Never mix them.** The IAM app connects to `IAM_DATABASE_URL`. Every other service connects to `WATCHER24_DATABASE_URL` (the `watcher24` database). They are different databases, even if they run in the same Postgres container.
 
 **Rule: Never write raw SQL migrations in `infrastructure/postgres/migrations/` that touch IAM-owned tables.**
 
@@ -257,6 +264,7 @@ Need to change IAM data/schema?
 | Add a column to `apikey` | Write `ALTER TABLE apikey ADD COLUMN ...` in `infrastructure/postgres/migrations/` | Add the field to `apps/iam/prisma/schema.prisma`, run `prisma migrate dev`, expose via IAM API |
 | Create a new key type | Insert directly into `apikey` from the console's pg pool | Add a `POST /api/internal/public-tokens` route in IAM; console calls that route |
 | Read org subscription data | Query `subscription` table from gateway or console directly | IAM exposes `GET /api/internal/org/:id/plan`; caller uses that |
+| Add prompt templates table | Put it in the IAM DB or touch IAM Prisma schema | Create `infrastructure/postgres/migrations/00N_prompt_templates.sql` targeting the `watcher24` DB |
 
 **IAM API endpoint security rules:**
 - Internal endpoints (called by console/gateway, not by end users) must be protected with a shared secret header: `X-Internal-Secret: <IAM_INTERNAL_SECRET env var>`
@@ -264,7 +272,7 @@ Need to change IAM data/schema?
 - Document every new endpoint in `apps/iam/docs/api.md`
 
 **What `infrastructure/postgres/migrations/` is for:**
-Only tables that are NOT owned by IAM — e.g., `applications` (the Watcher24-specific app registry). These are managed by raw SQL migrations because no ORM owns them.
+All non-IAM application tables in the `watcher24` database — feature tables owned by the console or other services: `applications`, `prompt_templates`, `eval_datasets`, `eval_dataset_items`, `notification_channels`, `notification_deliveries`, `in_app_notifications`, `alert_rules`, `alert_history`, and any future console feature tables. Files are numbered sequentially (`001_`, `002_`, …) and applied in order by `just migrate-pg`.
 
 ---
 

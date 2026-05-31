@@ -596,17 +596,24 @@ Extend the existing analytics-python worker to detect:
 
 Different parts of the AI observability feature write to different stores. Choosing the wrong store causes either poor query performance (raw files in Postgres) or unmaintainable schema fragmentation (structured rows in S3).
 
+### Two databases
+
+| Database | Managed by | Used for |
+|----------|-----------|---------|
+| **IAM DB** | Prisma inside `apps/iam` | Identity tables: `user`, `session`, `apikey`, `organization`, `member`, `subscription` — never touch with raw SQL |
+| **`watcher24` DB** | Raw SQL migrations in `infrastructure/postgres/migrations/` applied via `just migrate-pg` | All non-IAM feature tables: `prompt_templates`, `eval_datasets`, `eval_dataset_items`, `applications`, `notification_channels`, `alert_rules`, etc. |
+
 ### Storage decision table
 
-| Data | Store | Format | Reason |
-|------|-------|--------|--------|
-| All AI events (llm_call, tool_call, retrieval, …) | **ClickHouse** `watcher.events` | Structured columns + `payload JSONB` | Append-only, time-series queries, massive scale |
-| Prompt template content and version history | **PostgreSQL** `prompt_templates` | `content TEXT`, `variables JSONB` | Needs versioning, CRUD, relational joins; content is small (<100KB per version) |
-| Eval dataset item inputs and expected outputs | **PostgreSQL** `eval_dataset_items` | `input JSONB`, `expected JSONB` | Must be queryable — filter by source, join to dataset, paginate |
-| Eval run results | **ClickHouse** `watcher.events` (as `eval_run` AI events) | AI event payload | Same pipeline as all other AI events; no new table needed |
-| Human feedback labels | **ClickHouse** `watcher.events` (as `human_feedback` AI events) | AI event payload | Same pipeline; feedback correlates to llm_call spans by trace_id/span_id |
-| Bulk eval dataset file imports (CSV/JSON uploads) | **S3-compatible store** (MinIO / AWS S3) | Raw file | Files can be megabytes; blob storage is cheaper than DB rows; a background worker processes the file and inserts rows into `eval_dataset_items` |
-| Agent metadata (identity, capabilities) | **PostgreSQL** (IAM-owned via Prisma) | IAM schema | Never touch directly — read via IAM internal API (Rule 9) |
+| Data | Store | Database / Location | Reason |
+|------|-------|---------------------|--------|
+| All AI events (llm_call, tool_call, retrieval, …) | **ClickHouse** `watcher.events` | ClickHouse | Append-only, time-series queries, massive scale |
+| Prompt template content and version history | **PostgreSQL** `prompt_templates` | `watcher24` DB — `infrastructure/postgres/migrations/` | Needs versioning, CRUD, relational joins; content is small (<100KB per version) |
+| Eval dataset item inputs and expected outputs | **PostgreSQL** `eval_dataset_items` | `watcher24` DB — `infrastructure/postgres/migrations/` | Must be queryable — filter by source, join to dataset, paginate |
+| Eval run results | **ClickHouse** `watcher.events` (as `eval_run` AI events) | ClickHouse | Same pipeline as all other AI events; no new table needed |
+| Human feedback labels | **ClickHouse** `watcher.events` (as `human_feedback` AI events) | ClickHouse | Same pipeline; feedback correlates to llm_call spans by trace_id/span_id |
+| Bulk eval dataset file imports (CSV/JSON uploads) | **S3-compatible store** (MinIO / AWS S3) | MinIO (local) / AWS S3 (prod) | Files can be megabytes; blob storage is cheaper than DB rows; a background worker processes the file and inserts rows into `eval_dataset_items` |
+| Agent metadata (identity, capabilities) | **PostgreSQL** (IAM-owned via Prisma) | IAM DB — never touch directly | Read via IAM internal API (Rule 9) |
 
 ### When S3 is needed
 

@@ -19,7 +19,7 @@
 
 ## Step 1 — Database Migration
 
-**File:** `infrastructure/postgres/migrations/007_alert_rules.sql`
+**File:** `infrastructure/postgres/migrations/007_alert_rules.sql` — targets the `watcher24` database. Apply with `just migrate-pg`.
 
 Create `alert_rules` and `alert_history` tables exactly as specified in `docs/alerting/overview.md` (Data Storage section).
 
