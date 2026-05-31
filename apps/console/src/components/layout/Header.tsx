@@ -17,6 +17,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { NotificationBell } from "@/components/layout/NotificationBell";
 import { LogOut, User } from "lucide-react";
 
 interface HeaderProps {
@@ -54,6 +55,7 @@ export function Header({ user, orgId, activeAppId }: HeaderProps) {
 
       <div className="flex items-center gap-2">
         <ThemeToggle />
+        <NotificationBell />
 
         {/* User menu */}
         <DropdownMenu>

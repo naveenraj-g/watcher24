@@ -31,15 +31,15 @@ type NotificationRequest struct {
 // Delivery records one delivery attempt for one channel.
 // Stored in notification_deliveries so orgs can see what was sent and why it failed.
 type Delivery struct {
-	ID          string
-	OrgID       string
-	Template    string
-	Channel     Channel
-	Status      DeliveryStatus
-	Attempts    int
-	LastError   string
-	DeliveredAt *time.Time
-	CreatedAt   time.Time
+	ID          string         `json:"id"`
+	OrgID       string         `json:"org_id"`
+	Template    string         `json:"template"`
+	Channel     Channel        `json:"channel"`
+	Status      DeliveryStatus `json:"status"`
+	Attempts    int            `json:"attempts"`
+	LastError   string         `json:"last_error,omitempty"`
+	DeliveredAt *time.Time     `json:"delivered_at,omitempty"`
+	CreatedAt   time.Time      `json:"created_at"`
 }
 
 // DeliveryStatus represents the lifecycle state of a single delivery attempt.
@@ -54,14 +54,14 @@ const (
 // InAppNotification is a notification row written to PostgreSQL and shown
 // in the console's notification bell dropdown.
 type InAppNotification struct {
-	ID        string
-	OrgID     string
-	UserID    string // empty = org-wide
-	Title     string
-	Body      string
-	Severity  string // "info" | "warn" | "error"
-	Read      bool
-	CreatedAt time.Time
+	ID        string    `json:"id"`
+	OrgID     string    `json:"org_id"`
+	UserID    string    `json:"user_id"`
+	Title     string    `json:"title"`
+	Body      string    `json:"body"`
+	Severity  string    `json:"severity"` // "info" | "warn" | "error"
+	Read      bool      `json:"read"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 // RenderedMessage is the result of rendering a template with data.
