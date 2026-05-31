@@ -80,15 +80,16 @@ func (uc *DeliverNotificationUseCase) Execute(ctx context.Context, req *domain.N
 	}
 
 	for _, ch := range req.Channels {
-		sender, ok := uc.senders[ch]
-		if !ok {
-			log.Printf("deliver: no sender registered for channel %q — skipping", ch)
+		// In-app is handled directly via a DB insert — it has no Sender adapter.
+		// Check this before the sender lookup so it is never skipped.
+		if ch == domain.ChannelInApp {
+			uc.deliverInApp(ctx, req, msg)
 			continue
 		}
 
-		if ch == domain.ChannelInApp {
-			// In-app is a synchronous PostgreSQL insert — no goroutine needed.
-			uc.deliverInApp(ctx, req, msg)
+		sender, ok := uc.senders[ch]
+		if !ok {
+			log.Printf("deliver: no sender registered for channel %q — skipping", ch)
 			continue
 		}
 
