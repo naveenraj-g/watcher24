@@ -47,6 +47,12 @@ export const docsNav: NavSection[] = [
     ],
   },
   {
+    title: "Platform",
+    items: [
+      { title: "Notifications", href: "/docs/platform/notifications" },
+    ],
+  },
+  {
     title: "AI Observability",
     items: [
       { title: "Overview", href: "/docs/ai/overview" },
