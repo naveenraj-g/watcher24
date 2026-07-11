@@ -2,7 +2,7 @@
 
 ## Overview
 
-Watcher24 is a monorepo with six services that must all run to have a working local environment. This guide walks through getting everything running from a clean checkout.
+Watcher24 is a monorepo with seven services that must all run to have a working local environment. This guide walks through getting everything running from a clean checkout.
 
 ```
 Infrastructure (Docker):  PostgreSQL · ClickHouse · Redis · MinIO
@@ -11,6 +11,7 @@ Services:
   apps/gateway-go/       → http://localhost:8080   (Go — telemetry ingestion)
   apps/realtime-go/      → http://localhost:8081   (Go — WebSocket fan-out)
   apps/analytics-python/ → no HTTP port            (Python — stream workers)
+  apps/notifier-go/      → http://localhost:4004   (Go — email/in-app notification delivery)
   apps/console/          → http://localhost:3001   (Next.js — dashboard UI)
 ```
 
@@ -91,6 +92,14 @@ cp apps/gateway-go/.env.example       apps/gateway-go/.env
 cp apps/realtime-go/.env.example      apps/realtime-go/.env
 cp apps/analytics-python/.env.example apps/analytics-python/.env
 cp apps/console/.env.example          apps/console/.env
+```
+
+`apps/notifier-go` has no `.env` of its own — it reads `NOTIFIER_*`, `SMTP_*`, `CHANNELS_ENABLED`,
+and `WATCHER24_DATABASE_URL` from the **repo root** `.env`, loaded by the root `justfile`
+(`set dotenv-load := true`). Copy the root example too if you haven't already:
+
+```bash
+cp .env.example .env
 ```
 
 The defaults in `.env.example` are pre-configured to match the Docker Compose credentials — no editing required for a basic local setup.
@@ -193,7 +202,19 @@ log-worker: consumer group created, listening on stream:log
 
 ---
 
-## 8 — Start the Console (Next.js)
+## 8 — Start the Notifier (Go)
+
+```bash
+cd apps/notifier-go
+just dev
+```
+
+Notifier runs on **http://localhost:4004**. It connects to Redis and the `watcher24` Postgres
+database, and delivers email + in-app notifications for alert rules and events.
+
+---
+
+## 9 — Start the Console (Next.js)
 
 ```bash
 cd apps/console
@@ -230,16 +251,17 @@ The event should appear in the console overview within 1–2 seconds (live feed 
 
 ## Running All Services at Once (Optional)
 
-Instead of six terminal tabs, use `just` from the root:
+Instead of seven terminal tabs, use `just` from the root (run `just --list` to see every recipe):
 
 ```bash
-# From the monorepo root — check justfile for available recipes
-just dev-infra    # docker compose up -d
-just dev-iam      # starts IAM
-just dev-gateway  # starts gateway-go
-just dev-realtime # starts realtime-go
-just dev-workers  # starts analytics-python
-just dev-console  # starts console
+# From the monorepo root
+just up             # docker compose up -d
+just iam-dev         # starts IAM
+just gateway-dev     # starts gateway-go
+just realtime-dev    # starts realtime-go
+just worker-dev      # starts analytics-python
+just notifier-dev    # starts notifier-go
+just console-dev     # starts console
 ```
 
 Or use a process manager like [overmind](https://github.com/DarthSim/overmind) with a `Procfile`:
@@ -249,6 +271,7 @@ iam:      cd apps/iam && pnpm dev
 gateway:  cd apps/gateway-go && just dev
 realtime: cd apps/realtime-go && just dev
 workers:  cd apps/analytics-python && just dev
+notifier: cd apps/notifier-go && just dev
 console:  cd apps/console && pnpm dev
 ```
 
@@ -264,7 +287,8 @@ Services depend on each other. Start in this order:
 3. apps/gateway-go             (ingest — console proxies to it)
 4. apps/realtime-go            (WebSocket — console connects to it)
 5. apps/analytics-python       (workers — independent of console)
-6. apps/console                (UI — needs all of the above)
+6. apps/notifier-go            (notifications — independent of console)
+7. apps/console                (UI — needs all of the above)
 ```
 
 Stopping order doesn't matter.
@@ -277,19 +301,26 @@ Stopping order doesn't matter.
 # Go services
 cd apps/gateway-go && just test
 cd apps/realtime-go && just test
+cd apps/notifier-go && just test
 
 # Python workers
 cd apps/analytics-python && just test
 
-# Console + IAM (TypeScript)
-cd apps/console && pnpm test
-cd apps/iam && pnpm test
+# Console + IAM (TypeScript — lint/type-check only, no test suite yet)
+cd apps/console && pnpm lint && pnpm type-check
+cd apps/iam && pnpm lint
 
 # All SDKs
 cd sdk/js && pnpm test
 cd sdk/python && uv run pytest
 cd sdk/go && just test
 cd sdk/rust && cargo test
+```
+
+Or run everything backend/SDK-side from the root in one shot:
+
+```bash
+just test-all
 ```
 
 ---
@@ -350,6 +381,7 @@ docker compose up -d
 | http://localhost:3001 | Console — main dashboard |
 | http://localhost:3001/admin | Console superadmin panel |
 | http://localhost:8080/health | Gateway health check |
+| http://localhost:4004 | Notifier — internal API (requires `X-Internal-Secret`) |
 | http://localhost:8123 | ClickHouse HTTP interface (query via browser or curl) |
 | http://localhost:9001 | MinIO web console |
 

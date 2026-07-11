@@ -27,6 +27,7 @@ apps/realtime-go         — WebSocket fan-out service (Go, port 8081)
     ▼
 apps/console    — Console UI: observability, onboarding, billing, docs (Next.js, port 3001)
 
+apps/notifier-go         — Email + in-app notification delivery (Go, port 4004)
 apps/iam                 — Identity & Access Management (Next.js + better-auth, port 5000)
 PostgreSQL               — Auth + IAM data (port 5433)
 ```
@@ -41,6 +42,7 @@ watcher24/
 │   ├── gateway-go/        — Ingestion gateway (Go)
 │   ├── analytics-python/  — Event processing worker (Python)
 │   ├── realtime-go/       — WebSocket real-time service (Go)
+│   ├── notifier-go/       — Email + in-app notification delivery (Go)
 │   ├── console/  — Console UI (Next.js)
 │   └── iam/               — Auth & API key management (Next.js + better-auth)
 ├── sdk/
@@ -77,9 +79,12 @@ just up
 
 ### 2. Configure environment files
 
-Each app has a `.env.example` — copy and fill in values:
+Each app has a `.env.example` — copy and fill in values. The repo root also has its own
+`.env.example`, which `apps/notifier-go` reads from (via the root `justfile`'s `dotenv-load`)
+instead of having a `.env` of its own:
 
 ```bash
+cp .env.example                       .env
 cp apps/gateway-go/.env.example       apps/gateway-go/.env
 cp apps/analytics-python/.env.example apps/analytics-python/.env
 cp apps/realtime-go/.env.example      apps/realtime-go/.env
@@ -97,6 +102,7 @@ Open a terminal per service (or use your process manager of choice):
 just gateway-dev    # Go gateway       → http://localhost:8080
 just worker-dev     # Python worker
 just realtime-dev   # Go WebSocket     → ws://localhost:8081
+just notifier-dev   # Go notifier      → http://localhost:4004
 just console-dev    # Console UI        → http://localhost:3001
 just iam-dev        # IAM              → http://localhost:5000
 ```
@@ -110,6 +116,7 @@ just iam-dev        # IAM              → http://localhost:5000
 | Gateway | 8080 | Go | SDK telemetry ingestion, API key validation |
 | Analytics Worker | — | Python | Consume Redis stream, write to ClickHouse |
 | Realtime | 8081 | Go | WebSocket fan-out from Redis pub/sub |
+| Notifier | 4004 | Go | Email + in-app notification delivery |
 | Console | 3001 | Next.js | Observability UI, onboarding, billing, docs |
 | IAM | 5000 | Next.js + better-auth | Auth, users, orgs, API keys |
 | PostgreSQL | 5433 | — | Auth data (shared by IAM + Dashboard) |
@@ -190,7 +197,9 @@ Each app is documented in its own `docs/configuration.md`:
 - [`apps/gateway-go/docs/configuration.md`](apps/gateway-go/docs/configuration.md)
 - [`apps/analytics-python/docs/configuration.md`](apps/analytics-python/docs/configuration.md)
 - [`apps/realtime-go/docs/configuration.md`](apps/realtime-go/docs/configuration.md)
+- [`apps/notifier-go/docs/configuration.md`](apps/notifier-go/docs/configuration.md)
 - [`apps/console/docs/configuration.md`](apps/console/docs/configuration.md)
+- [`apps/iam/docs/configuration.md`](apps/iam/docs/configuration.md)
 
 
 ---

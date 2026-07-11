@@ -11,9 +11,13 @@ Copy `../../.env.example` to `../../.env` and fill in the values.
 |----------|---------|-------------|
 | `GATEWAY_PORT` | `8080` | HTTP port the gateway listens on |
 | `GATEWAY_ENV` | `development` | Environment name (`development`, `staging`, `production`) |
-| `GATEWAY_REGION` | `local` | Region tag added to enriched events |
+| `GATEWAY_DEFAULT_COUNTRY` | `""` | ISO alpha-2 fallback when GeoIP can't resolve the client IP (e.g. `127.0.0.1` in local dev). Leave empty in production. |
 | `IAM_DATABASE_URL` | `postgresql://watcher:watcher_secret@localhost:5433/iam` | PostgreSQL connection string for the IAM database (read-only) |
 | `REDIS_URL` | `redis://localhost:6379` | Redis connection string for publishing to streams |
+| `CLICKHOUSE_URL` | `http://localhost:8123` | ClickHouse HTTP endpoint used to count monthly events for plan limit enforcement |
+| `CLICKHOUSE_USER` | `watcher` | ClickHouse username |
+| `CLICKHOUSE_PASSWORD` | `watcher_secret` | ClickHouse password |
+| `CLICKHOUSE_DB` | `watcher` | ClickHouse database name |
 
 ---
 
